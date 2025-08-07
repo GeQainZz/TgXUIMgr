@@ -12,7 +12,7 @@
 ### 2.1 获取 Telegram Bot Token
 
 1.  在 Telegram 中搜索 `BotFather` 并开始对话。
-2.  发送 `/newbot` 命令，按照提示创建一个新的机器人。
+2.  发送 `/newbot` 命令，按照提示？创建一个新的机器人。
 3.  创建成功后，BotFather 会提供一个 **Token**，请务必复制并妥善保管它。
 
 ### 2.2 获取您的 Telegram User ID

@@ -80,34 +80,58 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             "**✨ 管理员命令:**\n"
             "/start - 🚀 开始与机器人交互\n"
             "/help - ℹ️ 显示此帮助信息\n"
-            "/setting - ⚙️ 配置面板连接\n"
-            "/status - 📊 查看面板状态\n"
+            "/setting - ⚙️ 新增或更新面板\n"
+            "/delpanel <名称> - 🗑️ 删除指定名称的面板\n"
+            "/listpanels - 📋 列出所有已配置的面板\n"
+            "/status <名称> - 📊 查看指定面板的状态 (不带名称则看全部)\n"
             "/adduser <ID> - ✅ 添加普通用户\n"
-            "/deluser <ID> - 🗑️ 删除普通用户\n"
-            "/listusers - 📋 列出所有授权用户"
+            "/deluser <ID> - ❌ 删除普通用户\n"
+            "/listusers - 👥 列出所有授权用户"
         )
     else:
         help_text = (
             "**👋 用户命令:**\n"
             "/start - 🚀 开始与机器人交互\n"
             "/help - ℹ️ 显示此帮助信息\n"
-            "/query <用户名> - 🔍 查询节点信息"
+            "/query <面板名> <用户名> - 🔍 查询节点信息"
         )
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
 @admin_only
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Fetches and displays the server status."""
-    panel_config = config.get_panel_config()
-    if not all(panel_config.values()):
-        await update.message.reply_text("面板未配置，请使用 /setting 命令进行配置。")
+    panel_name = context.args[0] if context.args else None
+    
+    if not panel_name:
+        all_panels = config.get_all_panels()
+        if not all_panels:
+            await update.message.reply_text("未配置任何面板，请使用 /setting 命令进行配置。")
+            return
+        
+        status_messages = ["**所有面板状态概览:**"]
+        for name, panel_config in all_panels.items():
+            api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
+            status = await api.get_server_status()
+            if status and 'xray' in status:
+                xray_status = status['xray'].get('state', 'N/A')
+                status_messages.append(f"- **{name}**: {xray_status.capitalize()}")
+            else:
+                status_messages.append(f"- **{name}**: `连接失败`")
+        
+        await update.message.reply_text("\n".join(status_messages), parse_mode='Markdown')
+        return
+
+    panel_config = config.get_panel_config(panel_name)
+    if not panel_config:
+        await update.message.reply_text(f"未找到名为 '{panel_name}' 的面板配置。")
         return
 
     api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
-    await update.message.reply_text("正在获取服务器状态，请稍候...")
+    await update.message.reply_text(f"正在获取 '{panel_name}' 的服务器状态，请稍候...")
     
     status = await api.get_server_status()
     if status and 'cpu' in status and 'mem' in status and 'disk' in status:
+        # ... (rest of the status formatting is the same)
         # CPU
         cpu_percent = status.get('cpu', 0)
 
@@ -142,7 +166,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         xray_version = xray.get('version', 'N/A')
 
         status_text = (
-            f"**面板状态**\n"
+            f"**面板 {panel_name} 状态**\n"
             f"- Xray 版本: `{xray_version}`\n"
             f"- Xray 状态: **{xray_status.capitalize()}**\n\n"
             f"**服务器状态**\n"
@@ -156,7 +180,8 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         await update.message.reply_text(status_text, parse_mode='Markdown')
     else:
-        await update.message.reply_text("无法获取完整的服务器状态，请检查面板连接或稍后再试。")
+        await update.message.reply_text(f"无法获取 '{panel_name}' 的完整服务器状态，请检查面板连接或稍后再试。")
+
 
 @authorized
 async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -176,18 +201,18 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             if user_id in failed_query_attempts:
                 del failed_query_attempts[user_id]
 
-    if not context.args:
-        await update.message.reply_text("请提供您的用户名进行查询，格式: /query <用户名>")
+    if len(context.args) < 2:
+        await update.message.reply_text("请提供面板名称和用户名进行查询，格式: /query <面板名> <用户名>")
         return
 
-    query_user = context.args[0]
-    panel_config = config.get_panel_config()
-    if not all(panel_config.values()):
-        await update.message.reply_text("系统配置不完整，请联系管理员。")
+    panel_name, query_user = context.args[0], context.args[1]
+    panel_config = config.get_panel_config(panel_name)
+    if not panel_config:
+        await update.message.reply_text(f"未找到名为 '{panel_name}' 的面板配置。")
         return
 
     api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
-    await update.message.reply_text("正在查询中，请稍候...")
+    await update.message.reply_text(f"正在在 '{panel_name}' 上查询中，请稍候...")
     
     inbounds_data = await api.get_inbounds()
     if not inbounds_data or not inbounds_data.get("success"):
@@ -217,13 +242,13 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         expiry_date = datetime.fromtimestamp(expiry_ts / 1000).strftime('%Y-%m-%d') if expiry_ts > 0 else "永不过期"
 
         reply_text = (
-            f"**用户 {query_user} 的节点信息:**\n"
+            f"**用户 {query_user} 在 '{panel_name}' 的节点信息:**\n"
             f"- 流量: {used_gb:.2f} GB / {total_gb:.2f} GB\n"
             f"- 到期时间: {expiry_date}"
         )
         await update.message.reply_text(reply_text, parse_mode='Markdown')
     else:
-        await update.message.reply_text(f"未找到用户名为 '{query_user}' 的节点。")
+        await update.message.reply_text(f"在 '{panel_name}' 上未找到用户名为 '{query_user}' 的节点。")
         now = datetime.now()
         if user_id not in failed_query_attempts:
             failed_query_attempts[user_id] = []
@@ -308,6 +333,34 @@ async def listusers_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             
     await update.message.reply_text(message, parse_mode='Markdown')
 
+@admin_only
+async def delpanel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Deletes a panel configuration."""
+    if not context.args:
+        await update.message.reply_text("使用格式: /delpanel <面板名>")
+        return
+
+    panel_name = context.args[0]
+    if config.delete_panel(panel_name):
+        await update.message.reply_text(f"🗑️ 面板 '{panel_name}' 已被成功删除。")
+    else:
+        await update.message.reply_text(f"未找到名为 '{panel_name}' 的面板。")
+
+@admin_only
+async def listpanels_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Lists all configured panels."""
+    all_panels = config.get_all_panels()
+    if not all_panels:
+        await update.message.reply_text("当前未配置任何面板。")
+        return
+
+    message = "**已配置的面板列表:**\n\n"
+    for name, panel_config in all_panels.items():
+        message += f"- **{name}**: `{panel_config['url']}`\n"
+
+    await update.message.reply_text(message, parse_mode='Markdown')
+
+
 # --- Settings Conversation ---
 # ...
 # In main():
@@ -315,11 +368,16 @@ async def listusers_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # application.add_handler(CommandHandler("deluser", deluser_command))
 # application.add_handler(CommandHandler("listusers", listusers_command))
 
-SET_URL, SET_USERNAME, SET_PASSWORD = range(3)
+SET_NAME, SET_URL, SET_USERNAME, SET_PASSWORD = range(4)
 
 @admin_only
 async def setting_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the conversation to set panel config."""
+    await update.message.reply_text("请输入要添加或更新的面板名称:")
+    return SET_NAME
+
+async def set_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['panel_name'] = update.message.text.strip()
     await update.message.reply_text("请输入您的 3x-ui 面板 URL:")
     return SET_URL
 
@@ -336,15 +394,17 @@ async def set_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def set_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['panel_password'] = update.message.text.strip()
     
-    url, username, password = context.user_data['panel_url'], context.user_data['panel_username'], context.user_data['panel_password']
+    name, url, username, password = context.user_data['panel_name'], context.user_data['panel_url'], context.user_data['panel_username'], context.user_data['panel_password']
     await update.message.reply_text("正在尝试连接面板...")
 
     api = XUIApi(url, username, password)
     if await api.login():
         current_config = config.get_config()
-        current_config['panel_config'] = {"url": url, "username": username, "password": password}
+        if 'panels' not in current_config:
+            current_config['panels'] = {}
+        current_config['panels'][name] = {"url": url, "username": username, "password": password}
         config.save_config(current_config)
-        await update.message.reply_text("✅ 连接成功！配置已保存。")
+        await update.message.reply_text(f"✅ 面板 '{name}' 连接成功！配置已保存。")
     else:
         await update.message.reply_text("❌ 连接失败！请检查凭证后使用 /setting 重试。")
     return ConversationHandler.END
@@ -358,30 +418,34 @@ async def cancel_setting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def check_inbounds_job(context: ContextTypes.DEFAULT_TYPE):
     """A recurring job to check for expiring inbounds and panel status."""
     logger.info("Running scheduled job: check_inbounds_job")
-    panel_config = config.get_panel_config()
-    if not all(panel_config.values()):
-        logger.warning("Job skipped: Panel is not configured.")
+    all_panels = config.get_all_panels()
+    if not all_panels:
+        logger.warning("Job skipped: No panels are configured.")
         return
 
-    api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
     admin_users = config.get_admin_users()
 
-    if not await api.login():
-        logger.error("Panel connection failed. Sending alert.")
-        for user_id in admin_users:
-            await context.bot.send_message(chat_id=user_id, text="🚨 **面板离线告警**", parse_mode='Markdown')
-        return
+    for name, panel_config in all_panels.items():
+        logger.info(f"Checking panel: {name}")
+        api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
 
-    inbounds_data = await api.get_inbounds()
-    if inbounds_data and inbounds_data.get("success"):
-        three_days_later = (datetime.now() + timedelta(days=3)).timestamp() * 1000
-        for inbound in inbounds_data.get("obj", []):
-            expiry_ts = inbound.get("expiryTime", 0)
-            if 0 < expiry_ts < three_days_later:
-                expiry_date = datetime.fromtimestamp(expiry_ts / 1000).strftime('%Y-%m-%d')
-                message = f"🔔 **入站到期提醒** 🔔\n- 备注: {inbound.get('remark', 'N/A')}\n- 将于: {expiry_date} 到期"
-                for user_id in admin_users:
-                    await context.bot.send_message(chat_id=user_id, text=message, parse_mode='Markdown')
+        if not await api.login():
+            logger.error(f"Panel '{name}' connection failed. Sending alert.")
+            for user_id in admin_users:
+                await context.bot.send_message(chat_id=user_id, text=f"🚨 **面板 '{name}' 离线告警**", parse_mode='Markdown')
+            continue # Skip to the next panel
+
+        inbounds_data = await api.get_inbounds()
+        if inbounds_data and inbounds_data.get("success"):
+            three_days_later = (datetime.now() + timedelta(days=3)).timestamp() * 1000
+            for inbound in inbounds_data.get("obj", []):
+                expiry_ts = inbound.get("expiryTime", 0)
+                if 0 < expiry_ts < three_days_later:
+                    expiry_date = datetime.fromtimestamp(expiry_ts / 1000).strftime('%Y-%m-%d')
+                    message = f"🔔 **入站到期提醒 ({name})** 🔔\n- 备注: {inbound.get('remark', 'N/A')}\n- 将于: {expiry_date} 到期"
+                    for user_id in admin_users:
+                        await context.bot.send_message(chat_id=user_id, text=message, parse_mode='Markdown')
+
 
 
 def main() -> None:
@@ -405,6 +469,7 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("setting", setting_start)],
         states={
+            SET_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_name)],
             SET_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_url)],
             SET_USERNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_username)],
             SET_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, set_password)],
@@ -419,6 +484,8 @@ def main() -> None:
     application.add_handler(CommandHandler("adduser", adduser_command))
     application.add_handler(CommandHandler("deluser", deluser_command))
     application.add_handler(CommandHandler("listusers", listusers_command))
+    application.add_handler(CommandHandler("delpanel", delpanel_command))
+    application.add_handler(CommandHandler("listpanels", listpanels_command))
 
 
     logger.info("Bot is running...")

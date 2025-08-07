@@ -10,11 +10,7 @@ DEFAULT_CONFIG = {
         "admin_users": [123456789],
         "normal_users": []
     },
-    "panel_config": {
-        "url": "",
-        "username": "",
-        "password": ""
-    }
+    "panels": {}
 }
 
 def get_config() -> Dict[str, Any]:
@@ -51,8 +47,22 @@ def get_admin_users() -> List[int]:
 def get_normal_users() -> List[int]:
     return config.get("users", {}).get("normal_users", [])
 
-def get_panel_config() -> Dict[str, str]:
-    return config.get("panel_config", {})
+def get_panel_config(name: str) -> Dict[str, str]:
+    """Retrieves a specific panel's configuration by name."""
+    return config.get("panels", {}).get(name, {})
+
+def get_all_panels() -> Dict[str, Any]:
+    """Retrieves all configured panels."""
+    return config.get("panels", {})
+
+def delete_panel(name: str) -> bool:
+    """Deletes a panel configuration by name."""
+    current_config = get_config()
+    if "panels" in current_config and name in current_config["panels"]:
+        del current_config["panels"][name]
+        save_config(current_config)
+        return True
+    return False
 
 def is_admin(user_id: int) -> bool:
     """Checks if a user is an admin."""
