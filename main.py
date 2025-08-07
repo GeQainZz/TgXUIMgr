@@ -21,6 +21,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# --- Rate Limiting ---
+failed_query_attempts = {}
+blocked_users = {}
+
+
+
 # --- Helper Functions ---
 def _format_bytes(size: int) -> str:
     """Helper function to format bytes into KB, MB, GB, etc."""
@@ -71,18 +77,21 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     """Displays the help message based on user role."""
     if config.is_admin(update.effective_user.id):
         help_text = (
-            "**管理员命令:**\n"
-            "/start - 开始与机器人交互\n"
-            "/help - 显示此帮助信息\n"
-            "/setting - 配置面板连接\n"
-            "/status - 查看面板状态"
+            "**✨ 管理员命令:**\n"
+            "/start - 🚀 开始与机器人交互\n"
+            "/help - ℹ️ 显示此帮助信息\n"
+            "/setting - ⚙️ 配置面板连接\n"
+            "/status - 📊 查看面板状态\n"
+            "/adduser <ID> - ✅ 添加普通用户\n"
+            "/deluser <ID> - 🗑️ 删除普通用户\n"
+            "/listusers - 📋 列出所有授权用户"
         )
     else:
         help_text = (
-            "**用户命令:**\n"
-            "/start - 开始与机器人交互\n"
-            "/help - 显示此帮助信息\n"
-            "/query <用户名> - 查询节点信息"
+            "**👋 用户命令:**\n"
+            "/start - 🚀 开始与机器人交互\n"
+            "/help - ℹ️ 显示此帮助信息\n"
+            "/query <用户名> - 🔍 查询节点信息"
         )
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
@@ -152,6 +161,21 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 @authorized
 async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Allows users to query their inbound status by username (email)."""
+    user_id = update.effective_user.id
+
+    # Check if user is blocked
+    if user_id in blocked_users:
+        unblock_time = blocked_users[user_id]
+        if datetime.now() < unblock_time:
+            remaining_time = unblock_time - datetime.now()
+            await update.message.reply_text(f"您因查询过于频繁已被暂时封禁，请在 {int(remaining_time.total_seconds() / 60)} 分钟后再试。")
+            return
+        else:
+            # Unblock user if time is up
+            del blocked_users[user_id]
+            if user_id in failed_query_attempts:
+                del failed_query_attempts[user_id]
+
     if not context.args:
         await update.message.reply_text("请提供您的用户名进行查询，格式: /query <用户名>")
         return
@@ -185,6 +209,8 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             break
 
     if found_inbound:
+        if user_id in failed_query_attempts:
+            del failed_query_attempts[user_id]
         used_gb = (found_inbound.get("up", 0) + found_inbound.get("down", 0)) / (1024**3)
         total_gb = found_inbound.get("total", 0) / (1024**3)
         expiry_ts = found_inbound.get("expiryTime", 0)
@@ -198,6 +224,21 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(reply_text, parse_mode='Markdown')
     else:
         await update.message.reply_text(f"未找到用户名为 '{query_user}' 的节点。")
+        now = datetime.now()
+        if user_id not in failed_query_attempts:
+            failed_query_attempts[user_id] = []
+
+        failed_query_attempts[user_id].append(now)
+        five_minutes_ago = now - timedelta(minutes=5)
+        failed_query_attempts[user_id] = [
+            t for t in failed_query_attempts[user_id] if t > five_minutes_ago
+        ]
+
+        if len(failed_query_attempts[user_id]) >= 5:
+            block_duration = timedelta(hours=2)
+            blocked_users[user_id] = now + block_duration
+            await update.message.reply_text("您因查询不存在的用户过于频繁，已被封禁2小时。")
+            del failed_query_attempts[user_id]
 
 @admin_only
 async def adduser_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
