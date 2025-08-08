@@ -1,0 +1,25 @@
+# 1. Telegram Bot Token (必填)
+# 从 Telegram 的 @BotFather 获取
+bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
+
+# 2. 授权用户 (必填)
+users:
+  # 管理员的用户 ID 列表，第一个将被视为超级管理员
+  admin_users:
+    - 123456789  # 替换为您的 Telegram User ID
+
+  # 普通用户的用户 ID 列表 (可选)
+  normal_users:
+    - 987654321
+
+# 3. 您的 3x-ui 面板列表 (可选，可后续通过机器人添加)
+# "自定义面板名称": { ... }
+panels:
+  "我的新加坡节点":
+    url: "http://your-panel-url.com:port"
+    username: "your_username"
+    password: "your_password"
+  "备用服务器":
+    url: "http://another-panel.com:port"
+    username: "admin"
+    password: "password123"
