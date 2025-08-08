@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from telegram import Update, BotCommand
 from telegram.ext import (
     Application,
@@ -449,6 +449,60 @@ async def check_inbounds_job(context: ContextTypes.DEFAULT_TYPE):
                         await context.bot.send_message(chat_id=user_id, text=message, parse_mode='Markdown')
 
 
+async def _execute_traffic_reset(context: ContextTypes.DEFAULT_TYPE):
+    """The core logic for resetting traffic, callable by jobs and commands."""
+    logger.info("Executing traffic reset logic.")
+    all_panels = config.get_all_panels()
+    admin_users = config.get_admin_users()
+
+    if not all_panels:
+        logger.warning("Traffic reset skipped: No panels are configured.")
+        for user_id in admin_users:
+            await context.bot.send_message(chat_id=user_id, text="ℹ️ 未配置任何面板，跳过流量重置任务。")
+        return
+
+    for user_id in admin_users:
+        await context.bot.send_message(chat_id=user_id, text="⚙️ 开始执行流量重置...")
+
+    for name, panel_config in all_panels.items():
+        logger.info(f"Resetting traffic for panel: {name}")
+        api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
+        
+        success = await api.reset_all_client_traffic()
+        
+        if success:
+            message = f"✅ **{name}**: 流量重置成功！"
+            logger.info(f"Successfully reset traffic for panel: {name}")
+        else:
+            message = f"❌ **{name}**: 流量重置失败！请检查面板连接或 API 接口。 "
+            logger.error(f"Failed to reset traffic for panel: {name}")
+            
+        for user_id in admin_users:
+            await context.bot.send_message(chat_id=user_id, text=message, parse_mode='Markdown')
+
+
+async def monthly_reset_job(context: ContextTypes.DEFAULT_TYPE):
+    """A recurring job to reset all traffic on the 1st of every month."""
+    today = datetime.now()
+    # 仅在每月1号执行
+    if today.day != 1:
+        logger.info(f"Skipping monthly reset job, it's not the 1st of the month (it's the {today.day}).")
+        return
+    await _execute_traffic_reset(context)
+
+
+
+
+
+
+@admin_only
+async def reset_now_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Manually triggers the traffic reset job for all panels."""
+    await update.message.reply_text("正在手动触发所有面板的流量重置任务...")
+    # 用 context 创建一个新的 job 来执行，以避免阻塞当前 handler
+    context.job_queue.run_once(lambda ctx: _execute_traffic_reset(ctx), 0)
+
+
 
 async def post_init(application: Application) -> None:
     """设置机器人的命令菜单."""
@@ -463,6 +517,7 @@ async def post_init(application: Application) -> None:
         BotCommand("adduser", "✅ 添加普通用户 (管理员)"),
         BotCommand("deluser", "❌ 删除普通用户 (管理员)"),
         BotCommand("listusers", "👥 列出所有用户 (管理员)"),
+        # BotCommand("resetnow", "⚡️ 立即重置所有流量 (管理员)"),
     ]
     await application.bot.set_my_commands(commands)
 
@@ -481,6 +536,8 @@ def main() -> None:
     job_queue = application.job_queue
     if job_queue:
         job_queue.run_repeating(check_inbounds_job, interval=timedelta(hours=6), first=timedelta(seconds=10))
+        # 在每天的 00:05 (UTC) 运行，然后在函数内部检查是否是1号
+        job_queue.run_daily(monthly_reset_job, time=time(hour=0, minute=5))
     else:
         logger.warning("JobQueue not initialized. Periodic checks will not run. "
                        "Install with 'pip install \"python-telegram-bot[job-queue]\"' to enable.")
@@ -506,6 +563,7 @@ def main() -> None:
     application.add_handler(CommandHandler("listusers", listusers_command))
     application.add_handler(CommandHandler("delpanel", delpanel_command))
     application.add_handler(CommandHandler("listpanels", listpanels_command))
+    # application.add_handler(CommandHandler("resetnow", reset_now_command))
 
 
     logger.info("Bot is running...")

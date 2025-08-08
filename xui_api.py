@@ -55,3 +55,18 @@ class XUIApi:
             return None
         return None
 
+    async def reset_all_client_traffic(self) -> bool:
+        """Resets all client traffic for all inbounds."""
+        if not self.session_cookie:
+            if not await self.login():
+                return False
+        
+        reset_url = f"{self.base_url}/panel/inbound/resetAllClientTraffics/-1"
+        cookies = {"session": self.session_cookie}
+        try:
+            response = await self.client.post(reset_url, cookies=cookies)
+            return response.status_code == 200 and response.json().get("success")
+        except httpx.RequestError as e:
+            print(f"Error resetting traffic: {e}")
+            return False
+
