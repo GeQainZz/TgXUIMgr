@@ -1,7 +1,7 @@
 import logging
 from functools import wraps
 from datetime import datetime, timedelta
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -402,7 +402,7 @@ async def set_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     api = XUIApi(url, username, password)
     if await api.login():
         current_config = config.get_config()
-        if 'panels' not in current_config:
+        if 'panels' not in current_config or not current_config['panels']:
             current_config['panels'] = {}
         current_config['panels'][name] = {"url": url, "username": username, "password": password}
         config.save_config(current_config)
@@ -450,6 +450,23 @@ async def check_inbounds_job(context: ContextTypes.DEFAULT_TYPE):
 
 
 
+async def post_init(application: Application) -> None:
+    """设置机器人的命令菜单."""
+    commands = [
+        BotCommand("start", "🚀 开始与机器人交互"),
+        BotCommand("help", "ℹ️ 获取帮助信息"),
+        BotCommand("query", "🔍 查询节点信息 (用户)"),
+        BotCommand("setting", "⚙️ 新增或更新面板 (管理员)"),
+        BotCommand("status", "📊 查看面板状态 (管理员)"),
+        BotCommand("listpanels", "📋 列出所有面板 (管理员)"),
+        BotCommand("delpanel", "🗑️ 删除指定面板 (管理员)"),
+        BotCommand("adduser", "✅ 添加普通用户 (管理员)"),
+        BotCommand("deluser", "❌ 删除普通用户 (管理员)"),
+        BotCommand("listusers", "👥 列出所有用户 (管理员)"),
+    ]
+    await application.bot.set_my_commands(commands)
+
+
 def main() -> None:
     """Start the bot."""
     bot_token = config.get_bot_token()
@@ -458,6 +475,7 @@ def main() -> None:
         return
 
     application = Application.builder().token(bot_token).build()
+    application.post_init = post_init
 
     # --- Job Queue ---
     job_queue = application.job_queue
