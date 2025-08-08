@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  tgbot:
+    build: .
+    container_name: xui-tgbot
+    restart: unless-stopped
+    volumes:
+      - ./config.yml:/app/config.yml

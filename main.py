@@ -241,9 +241,11 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         expiry_ts = found_inbound.get("expiryTime", 0)
         expiry_date = datetime.fromtimestamp(expiry_ts / 1000).strftime('%Y-%m-%d') if expiry_ts > 0 else "永不过期"
 
+        used_gb_double = float(used_gb) * 2
+        total_gb_double = float(total_gb) * 2
         reply_text = (
             f"**用户 {query_user} 在 '{panel_name}' 的节点信息:**\n"
-            f"- 流量: {used_gb:.2f} GB / {total_gb:.2f} GB\n"
+            f"- 流量: {used_gb_double:.2f} GB / {total_gb_double:.2f} GB\n"
             f"- 到期时间: {expiry_date}"
         )
         await update.message.reply_text(reply_text, parse_mode='Markdown')
