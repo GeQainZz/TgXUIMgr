@@ -1,4 +1,6 @@
 import logging
+import subprocess
+import sys
 from functools import wraps
 from datetime import datetime, timedelta, time
 from telegram import Update, BotCommand
@@ -183,12 +185,14 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(f"无法获取 '{panel_name}' 的完整服务器状态，请检查面板连接或稍后再试。")
 
 
+from query_logic import query_user_data
+
 @authorized
 async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Allows users to query their inbound status by username (email)."""
     user_id = update.effective_user.id
 
-    # Check if user is blocked
+    # Rate limiting and argument checks remain the same...
     if user_id in blocked_users:
         unblock_time = blocked_users[user_id]
         if datetime.now() < unblock_time:
@@ -196,61 +200,34 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             await update.message.reply_text(f"您因查询过于频繁已被暂时封禁，请在 {int(remaining_time.total_seconds() / 60)} 分钟后再试。")
             return
         else:
-            # Unblock user if time is up
             del blocked_users[user_id]
             if user_id in failed_query_attempts:
                 del failed_query_attempts[user_id]
-
+    
     if len(context.args) < 2:
         await update.message.reply_text("请提供面板名称和用户名进行查询，格式: /query <面板名> <用户名>")
         return
 
     panel_name, query_user = context.args[0], context.args[1]
-    panel_config = config.get_panel_config(panel_name)
-    if not panel_config:
-        await update.message.reply_text(f"未找到名为 '{panel_name}' 的面板配置。")
-        return
-
-    api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
+    
     await update.message.reply_text(f"正在在 '{panel_name}' 上查询中，请稍候...")
     
-    inbounds_data = await api.get_inbounds()
-    if not inbounds_data or not inbounds_data.get("success"):
-        await update.message.reply_text("无法从面板获取数据，请稍后再试。")
-        return
-
-    found_inbound = None
-    for inbound in inbounds_data.get("obj", []):
-        clients = inbound.get("clientStats", [])
-        for client in clients:
-            if client.get("email") == query_user:
-                found_inbound = client
-                found_inbound.update({
-                    'total': client.get('total', inbound.get('total', 0)),
-                    'expiryTime': client.get('expiryTime', inbound.get('expiryTime', 0))
-                })
-                break
-        if found_inbound:
-            break
-
-    if found_inbound:
+    # --- 调用核心查询逻辑 ---
+    success, result = await query_user_data(panel_name, query_user)
+    
+    if success:
         if user_id in failed_query_attempts:
             del failed_query_attempts[user_id]
-        used_gb = (found_inbound.get("up", 0) + found_inbound.get("down", 0)) / (1024**3)
-        total_gb = found_inbound.get("total", 0) / (1024**3)
-        expiry_ts = found_inbound.get("expiryTime", 0)
-        expiry_date = datetime.fromtimestamp(expiry_ts / 1000).strftime('%Y-%m-%d') if expiry_ts > 0 else "永不过期"
-
-        used_gb_double = float(used_gb) * 2
-        total_gb_double = float(total_gb) * 2
+        
         reply_text = (
-            f"**用户 {query_user} 在 '{panel_name}' 的节点信息:**\n"
-            f"- 流量: {used_gb_double:.2f} GB / {total_gb_double:.2f} GB\n"
-            f"- 到期时间: {expiry_date}"
+            f"**用户 {result['email']} 在 '{result['panel_name']}' 的节点信息:**\n"
+            f"- 流量: {result['used_gb']} GB / {result['total_gb']} GB\n"
+            f"- 到期时间: {result['expiry_date']}"
         )
         await update.message.reply_text(reply_text, parse_mode='Markdown')
     else:
-        await update.message.reply_text(f"在 '{panel_name}' 上未找到用户名为 '{query_user}' 的节点。")
+        # Handle not found error and rate limiting
+        await update.message.reply_text(result) # result is the error message
         now = datetime.now()
         if user_id not in failed_query_attempts:
             failed_query_attempts[user_id] = []
@@ -266,6 +243,7 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             blocked_users[user_id] = now + block_duration
             await update.message.reply_text("您因查询不存在的用户过于频繁，已被封禁2小时。")
             del failed_query_attempts[user_id]
+
 
 @admin_only
 async def adduser_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -522,6 +500,27 @@ async def post_init(application: Application) -> None:
     await application.bot.set_my_commands(commands)
 
 
+def run_web_app():
+    """使用 Gunicorn 启动 Web 应用."""
+    logger.info("Starting web application with Gunicorn...")
+    # Gunicorn 的推荐 worker 数量通常是 (2 * CPU核心数) + 1
+    # 在容器环境中，我们先用一个简单的默认值 3
+    # 在 Docker 中，我们监听 0.0.0.0:5000
+    command = [
+        "gunicorn",
+        "--workers", "1",
+        "--bind", "0.0.0.0:5000",
+        "webapp:app"
+    ]
+    try:
+        # 使用 Popen 在后台启动子进程
+        subprocess.Popen(command)
+        logger.info("Web application started successfully.")
+    except FileNotFoundError:
+        logger.error("Gunicorn not found. Please ensure it is installed (`pip install gunicorn`).")
+        sys.exit(1)
+
+
 def main() -> None:
     """Start the bot."""
     bot_token = config.get_bot_token()
@@ -531,6 +530,9 @@ def main() -> None:
 
     application = Application.builder().token(bot_token).build()
     application.post_init = post_init
+
+    # 在启动 bot 之前，先在后台启动 Web 服务
+    run_web_app()
 
     # --- Job Queue ---
     job_queue = application.job_queue

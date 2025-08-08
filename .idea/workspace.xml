@@ -4,15 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="41b680bb-0d79-4fb4-b445-43ede27afe28" name="Changes" comment="1.兼容多面板">
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/xui-tgbot.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MANUAL.md" beforeDir="false" afterPath="$PROJECT_DIR$/MANUAL.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config.yml" afterDir="false" />
+    <list default="true" id="41b680bb-0d79-4fb4-b445-43ede27afe28" name="Changes" comment="1.定时任务每月月初自动重置面板流量">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,22 +29,22 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.config.executor": "Run",
-    "Python.main.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.config.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RdControllerToolWindowsLayoutState" isNewUi="true">
     <layout>
       <window_info id="Bookmarks" side_tool="true" />
@@ -57,8 +53,8 @@
       <window_info id="Commit_Guest" show_stripe_button="false" />
       <window_info id="Pull Requests" />
       <window_info id="Learn" />
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.3299813" />
-      <window_info id="Commit" order="1" weight="0.3299813" />
+      <window_info content_ui="combo" id="Project" order="0" weight="0.3299813" />
+      <window_info active="true" id="Commit" order="1" visible="true" weight="0.3299813" />
       <window_info id="Structure" order="2" side_tool="true" weight="0.25" />
       <window_info anchor="bottom" id="Database Changes" />
       <window_info anchor="bottom" id="TypeScript" />
@@ -66,15 +62,15 @@
       <window_info anchor="bottom" id="File Transfer" />
       <window_info anchor="bottom" id="HfCacheToolWindow" />
       <window_info anchor="bottom" id="Find" />
-      <window_info anchor="bottom" id="Version Control" order="0" weight="0.47056276" />
+      <window_info anchor="bottom" id="Version Control" order="0" weight="0.41515154" />
       <window_info anchor="bottom" id="Problems" order="1" />
       <window_info anchor="bottom" id="Problems View" order="2" />
-      <window_info active="true" anchor="bottom" id="Terminal" order="3" visible="true" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="3" visible="true" weight="0.41515154" />
       <window_info anchor="bottom" id="Services" order="4" weight="0.47056276" />
       <window_info anchor="bottom" id="Python Packages" order="5" weight="0.1" />
       <window_info anchor="bottom" id="Python Console" order="6" weight="0.1" />
-      <window_info anchor="bottom" id="Run" order="7" weight="0.35974026" />
-      <window_info anchor="bottom" id="Debug" order="8" weight="0.47056276" />
+      <window_info anchor="bottom" id="Run" order="7" weight="0.41515154" />
+      <window_info anchor="bottom" id="Debug" order="8" weight="0.41515154" />
       <window_info anchor="right" id="Endpoints" />
       <window_info anchor="right" id="Coverage" side_tool="true" />
       <window_info anchor="right" id="SciView" />
@@ -183,7 +179,23 @@
       <option name="project" value="LOCAL" />
       <updated>1754571621708</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="1.面板添加bug修复&#10;2.机器人交互菜单">
+      <option name="closed" value="true" />
+      <created>1754622175947</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1754622175947</updated>
+    </task>
+    <task id="LOCAL-00005" summary="1.定时任务每月月初自动重置面板流量">
+      <option name="closed" value="true" />
+      <created>1754622552959</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1754622552959</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -204,19 +216,21 @@
     <MESSAGE value="调试成功" />
     <MESSAGE value="1.新增提示&#10;2.查询频繁封禁功能" />
     <MESSAGE value="1.兼容多面板" />
-    <option name="LAST_COMMIT_MESSAGE" value="1.兼容多面板" />
+    <MESSAGE value="1.面板添加bug修复&#10;2.机器人交互菜单" />
+    <MESSAGE value="1.定时任务每月月初自动重置面板流量" />
+    <option name="LAST_COMMIT_MESSAGE" value="1.定时任务每月月初自动重置面板流量" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>292</line>
+          <line>270</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>285</line>
+          <line>263</line>
           <option name="timeStamp" value="3" />
         </line-breakpoint>
       </breakpoints>

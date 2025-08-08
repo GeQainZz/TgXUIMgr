@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XUI 面板流量查询</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f7f9;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        input {
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            padding: 0.8rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            text-align: left;
+            min-height: 50px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: #3498db;
+            animation: spin 1s ease infinite;
+            display: none; /* Hidden by default */
+            margin: 1rem auto 0;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>流量自助查询</h1>
+    <form id="query-form">
+        <input type="text" id="panel_name" name="panel_name" placeholder="面板名称" required>
+        <input type="text" id="email" name="email" placeholder="您的用户名 (Email)" required>
+        <button type="submit">查询</button>
+    </form>
+    <div id="result">
+        查询结果将显示在这里
+    </div>
+    <div class="spinner" id="spinner"></div>
+</div>
+
+<script>
+    document.getElementById('query-form').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const panelName = document.getElementById('panel_name').value;
+        const email = document.getElementById('email').value;
+        const resultDiv = document.getElementById('result');
+        const spinner = document.getElementById('spinner');
+
+        resultDiv.textContent = '';
+        spinner.style.display = 'block';
+
+        try {
+            const response = await fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ panel_name: panelName, email: email }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                resultDiv.innerHTML = `<strong>用户:</strong> ${data.email}<br>` +
+                                      `<strong>面板:</strong> ${data.panel_name}<br>` +
+                                      `<strong>已用流量:</strong> ${data.used_gb} GB<br>` +
+                                      `<strong>总流量:</strong> ${data.total_gb} GB<br>` +
+                                      `<strong>到期时间:</strong> ${data.expiry_date}`;
+            } else {
+                resultDiv.textContent = `错误: ${data.error}`;
+            }
+        } catch (error) {
+            resultDiv.textContent = '查询失败，请检查网络或联系管理员。';
+            console.error('Error:', error);
+        } finally {
+            spinner.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>

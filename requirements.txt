@@ -1,3 +1,5 @@
 python-telegram-bot[job-queue]
 httpx
 PyYAML
+Flask
+gunicorn
