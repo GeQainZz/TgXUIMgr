@@ -460,13 +460,21 @@ async def _execute_traffic_reset(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def monthly_reset_job(context: ContextTypes.DEFAULT_TYPE):
-    """A recurring job to reset all traffic on the 1st of every month."""
+    """A recurring job to reset all traffic on the 1st of every month if enabled."""
+    # 首先检查功能开关是否开启
+    if not config.is_monthly_reset_enabled():
+        logger.info("Skipping monthly reset job because it is disabled in the config.")
+        return
+
     today = datetime.now()
     # 仅在每月1号执行
     if today.day != 1:
         logger.info(f"Skipping monthly reset job, it's not the 1st of the month (it's the {today.day}).")
         return
+    
+    # 确保 _execute_traffic_reset 是异步的，如果不是，需要调整
     await _execute_traffic_reset(context)
+
 
 
 

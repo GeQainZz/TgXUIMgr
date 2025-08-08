@@ -72,3 +72,7 @@ def is_authorized(user_id: int) -> bool:
     """Checks if a user is either an admin or a normal user."""
     return is_admin(user_id) or user_id in get_normal_users()
 
+def is_monthly_reset_enabled() -> bool:
+    """Checks if the monthly traffic reset job is enabled."""
+    return config.get("monthly_reset", {}).get("enable", False)
+

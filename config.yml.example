@@ -23,3 +23,8 @@ panels:
     url: "http://another-panel.com:port"
     username: "admin"
     password: "password123"
+
+# 4. 自动化任务设置 (可选)
+monthly_reset:
+  # 是否在每月1号自动重置所有面板的流量，true 为开启，false 为关闭
+  enable: false
