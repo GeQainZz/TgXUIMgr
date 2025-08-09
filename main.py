@@ -219,9 +219,28 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         if user_id in failed_query_attempts:
             del failed_query_attempts[user_id]
         
+        accounting_mode = config.get_config().get('traffic', {}).get('accounting_mode', 'unidirectional')
+        
+        used_gb = result['used_gb']
+        total_gb = result['total_gb']
+
+        if accounting_mode == 'bidirectional':
+            try:
+                used_gb = float(used_gb) * 2
+                total_gb = float(total_gb) * 2
+            except (ValueError, TypeError):
+                pass  # 如果值不是数字，则保持原样
+
+        try:
+            used_gb_formatted = f"{float(used_gb):.2f}"
+            total_gb_formatted = f"{float(total_gb):.2f}"
+        except (ValueError, TypeError):
+            used_gb_formatted = used_gb
+            total_gb_formatted = total_gb
+
         reply_text = (
             f"**用户 {result['email']} 在 '{result['panel_name']}' 的节点信息:**\n"
-            f"- 流量: {result['used_gb']} GB / {result['total_gb']} GB\n"
+            f"- 流量: {used_gb_formatted} GB / {total_gb_formatted} GB\n"
             f"- 到期时间: {result['expiry_date']}"
         )
         await update.message.reply_text(reply_text, parse_mode='Markdown')

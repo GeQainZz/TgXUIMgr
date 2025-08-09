@@ -28,3 +28,10 @@ panels:
 monthly_reset:
   # 是否在每月1号自动重置所有面板的流量，true 为开启，false 为关闭
   enable: false
+
+# 5. 流量统计设置 (可选)
+traffic:
+  # 流量统计方式: 'unidirectional' (单向) 或 'bidirectional' (双向)
+  # 'bidirectional' 会将面板报告的流量乘以2
+  accounting_mode: 'unidirectional'
+
