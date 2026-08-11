@@ -9,3 +9,7 @@ __pycache__/
 
 # Config
 config.yml
+
+# Runtime data & backups (may contain real user emails / traffic)
+data/
+*.bak.*
