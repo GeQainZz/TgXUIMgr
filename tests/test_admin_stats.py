@@ -63,6 +63,21 @@ class AdminStatsEndpointTests(unittest.TestCase):
         panel_daily.assert_called_once_with("2026-08-10", "2026-08-16")
         top.assert_called_once_with("2026-08-10", "2026-08-16", limit=20)
 
+    @patch("webapp.get_top_users", return_value=[])
+    @patch("webapp.get_panel_daily_stats", return_value=[])
+    @patch("webapp.get_daily_stats", return_value=[])
+    @patch("webapp.get_date_range", return_value=("2026-08-11", "2026-08-14"))
+    def test_filters_top_users_by_selected_panel(self, _range, daily, panel_daily, top):
+        response = self.client.get(
+            "/api/admin/stats/day?date=2026-08-14&panel=BIGGERBOX-PRO"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["selected_panel"], "BIGGERBOX-PRO")
+        top.assert_called_once_with(
+            "2026-08-14", "2026-08-14", panel_name="BIGGERBOX-PRO", limit=20
+        )
+
     def test_rejects_malformed_date(self):
         response = self.client.get("/api/admin/stats/month?date=2026-13-40")
 
@@ -94,6 +109,11 @@ class AdminStatsTemplateTests(unittest.TestCase):
 
     def test_stats_view_has_empty_state(self):
         self.assertIn('id="stats-empty"', self.html)
+
+    def test_stats_view_removes_daily_trend_and_clicks_panel_chart(self):
+        self.assertNotIn('id="chart-stats-trend"', self.html)
+        self.assertIn("params.set('panel', selectedStatsPanel)", self.html)
+        self.assertIn("onClick: (event, elements)", self.html)
 
 
 if __name__ == "__main__":

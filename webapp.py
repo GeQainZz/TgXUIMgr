@@ -343,9 +343,14 @@ def admin_stats_period(period):
     start, end = _date_range_for(period, anchor)
     daily = get_daily_stats(start, end)
     panel_daily = get_panel_daily_stats(start, end)
-    top = get_top_users(start, end, limit=20)
+    panel_name = request.args.get("panel", "").strip() or None
+    if panel_name:
+        top = get_top_users(start, end, panel_name=panel_name, limit=20)
+    else:
+        top = get_top_users(start, end, limit=20)
     return jsonify({
         "selected_date": selected_date,
+        "selected_panel": panel_name,
         "start": start,
         "end": end,
         "available_range": {

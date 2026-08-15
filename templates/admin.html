@@ -187,15 +187,11 @@
             <div class="stats-empty-state" id="stats-empty" hidden>所选统计范围暂无流量数据</div>
             <div class="stats-grid" id="stats-cards"></div>
             <div class="card">
-                <div class="card-title">每日流量趋势</div>
-                <div class="chart-container"><canvas id="chart-stats-trend"></canvas></div>
-            </div>
-            <div class="card">
                 <div class="card-title">各面板流量对比</div>
                 <div class="chart-container" style="height:220px;"><canvas id="chart-stats-panel"></canvas></div>
             </div>
             <div class="card" style="padding:0;overflow:hidden;">
-                <div style="padding:1rem 1.25rem 0;"><div class="card-title" style="margin-bottom:0;">Top 20 用户</div></div>
+                <div style="padding:1rem 1.25rem 0;"><div class="card-title" id="stats-top-title" style="margin-bottom:0;">各面板 Top 20 用户</div></div>
                 <table>
                     <thead><tr><th>#</th><th>用户</th><th>面板</th><th style="text-align:right;">用量</th></tr></thead>
                     <tbody id="stats-top-tbody"></tbody>
@@ -491,9 +487,10 @@ async function delUser(uid) {
 }
 
 // --- Stats ---
-let statsTrendChart = null, statsPanelChart = null;
+let statsPanelChart = null;
 let currentPeriod = 'day';
 let statsSelectedDate = '';
+let selectedStatsPanel = '';
 let statsAvailableStart = '';
 let statsAvailableEnd = '';
 
@@ -574,6 +571,11 @@ function shiftStatsDate(direction) {
     loadStats(currentPeriod);
 }
 
+function toggleStatsPanel(panel) {
+    selectedStatsPanel = selectedStatsPanel === panel ? '' : panel;
+    loadStats(currentPeriod);
+}
+
 document.querySelectorAll('#stats-period-control button').forEach(b => {
     b.onclick = () => {
         document.querySelectorAll('#stats-period-control button').forEach(x => x.classList.remove('active'));
@@ -587,8 +589,10 @@ async function loadStats(period) {
     try {
         const params = new URLSearchParams();
         if (statsSelectedDate) params.set('date', statsSelectedDate);
+        if (selectedStatsPanel) params.set('panel', selectedStatsPanel);
         const query = params.toString();
         const d = await api('/api/admin/stats/' + period + (query ? '?' + query : ''));
+        selectedStatsPanel = d.selected_panel || '';
         updateStatsNavigation(d);
         document.getElementById('stats-empty').hidden = (d.daily || []).length > 0;
         // Summary cards
@@ -596,30 +600,31 @@ async function loadStats(period) {
         const panelTotals = {};
         (d.panel_daily || []).forEach(x => { panelTotals[x.panel_name] = (panelTotals[x.panel_name] || 0) + x.daily_total; });
         const topPanel = Object.entries(panelTotals).sort((a,b) => b[1]-a[1])[0];
+        const selectedPanelTotal = selectedStatsPanel ? (panelTotals[selectedStatsPanel] || 0) : totalDaily;
         document.getElementById('stats-cards').innerHTML = [
-            {label:'总流量', value: fmtGB(totalDaily)},
+            {label: selectedStatsPanel ? '当前面板流量' : '总流量', value: fmtGB(selectedPanelTotal)},
             {label:'有数据天数', value: (d.daily || []).length},
-            {label:'最高用量面板', value: topPanel ? topPanel[0] : '-', sub: topPanel ? fmtGB(topPanel[1]) : ''},
+            {label: selectedStatsPanel ? '当前面板' : '最高用量面板', value: selectedStatsPanel || (topPanel ? topPanel[0] : '-'), sub: selectedStatsPanel ? '' : (topPanel ? fmtGB(topPanel[1]) : '')},
         ].map(s => `<div class="stat-card"><div class="label">${s.label}</div><div class="value">${s.value}</div>${s.sub ? `<div class="sub">${s.sub}</div>` : ''}</div>`).join('');
-
-        // Trend chart
-        if (statsTrendChart) statsTrendChart.destroy();
-        const ctx1 = document.getElementById('chart-stats-trend').getContext('2d');
-        const labels = (d.daily || []).map(x => x.record_date);
-        const upData = (d.daily || []).map(x => +(x.total_upload / 1073741824).toFixed(2));
-        const downData = (d.daily || []).map(x => +(x.total_download / 1073741824).toFixed(2));
-        statsTrendChart = new Chart(ctx1, {type:'bar', data:{labels, datasets:[
-            {label:'上传(GB)', data:upData, backgroundColor:'rgba(37,99,235,0.6)'},
-            {label:'下载(GB)', data:downData, backgroundColor:'rgba(22,163,74,0.6)'},
-        ]}, options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}}});
 
         // Panel comparison chart
         if (statsPanelChart) statsPanelChart.destroy();
         const ctx2 = document.getElementById('chart-stats-panel').getContext('2d');
         const pLabels = Object.keys(panelTotals);
         const pData = pLabels.map(k => +(panelTotals[k] / 1073741824).toFixed(2));
-        statsPanelChart = new Chart(ctx2, {type:'doughnut', data:{labels:pLabels, datasets:[{data:pData, backgroundColor:['#2563eb','#16a34a','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#ef4444','#84cc16']}]},
-            options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
+        statsPanelChart = new Chart(ctx2, {type:'doughnut', data:{labels:pLabels, datasets:[{data:pData, offset:pLabels.map(k => k === selectedStatsPanel ? 10 : 0), backgroundColor:['#2563eb','#16a34a','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#ef4444','#84cc16']}]},
+            options:{responsive:true, maintainAspectRatio:false, onClick: (event, elements) => {
+                if (!elements.length) return;
+                toggleStatsPanel(pLabels[elements[0].index]);
+            }, onHover: (event, elements) => {
+                event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+            }, plugins:{legend:{position:'right', onClick: (event, item) => {
+                toggleStatsPanel(pLabels[item.index]);
+            }}}}});
+
+        document.getElementById('stats-top-title').textContent = selectedStatsPanel
+            ? `${selectedStatsPanel} Top 20 用户`
+            : '各面板 Top 20 用户';
 
         // Top users
         let html = '';
