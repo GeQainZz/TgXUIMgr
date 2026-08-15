@@ -1,11 +1,14 @@
-version: '3.8'
-
 services:
   tgbot:
     build: .
     container_name: xui-tgbot
     restart: unless-stopped
+    environment:
+      TZ: Asia/Hong_Kong
     volumes:
       - ./config.yml:/app/config.yml
+      - ./data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     ports:
       - "5000:5000"
