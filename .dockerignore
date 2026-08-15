@@ -1,0 +1,11 @@
+.git
+.gitignore
+.idea
+__pycache__
+*.py[cod]
+*.bak.*
+.env*
+config.yml
+data/
+docs/
+tests/

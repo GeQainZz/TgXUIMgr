@@ -62,6 +62,29 @@ def batch_record_traffic(records: List[Tuple]):
     conn.close()
 
 
+def cleanup_old_traffic(retention_days: int = 365,
+                        reference_date: Optional[str] = None) -> int:
+    """Delete snapshots outside the inclusive retention window."""
+    retention_days = max(1, int(retention_days))
+    if reference_date:
+        reference = datetime.strptime(reference_date, "%Y-%m-%d").date()
+    else:
+        reference = datetime.now().date()
+    cutoff = reference - timedelta(days=retention_days - 1)
+
+    conn = _get_conn()
+    cursor = conn.execute(
+        "DELETE FROM traffic_records WHERE record_date < ?",
+        (cutoff.strftime("%Y-%m-%d"),),
+    )
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    if deleted:
+        logger.info("Removed %s traffic records older than %s.", deleted, cutoff)
+    return deleted
+
+
 def _delta_cte() -> str:
     """Reusable CTE: computes per-row daily deltas from consecutive cumulative snapshots."""
     return """

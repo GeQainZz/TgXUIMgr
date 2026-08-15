@@ -11,4 +11,4 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"

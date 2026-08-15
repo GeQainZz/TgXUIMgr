@@ -143,11 +143,11 @@ def admin_test_panel(name):
         return jsonify({"error": f"未找到面板 '{name}'"}), 404
     try:
         async def _test():
-            api = XUIApi(pconf["url"], pconf["username"], pconf["password"])
-            ok = await api.login()
-            status = None
-            if ok:
-                status = await api.get_server_status()
+            async with XUIApi(pconf["url"], pconf["username"], pconf["password"]) as api:
+                ok = await api.login()
+                status = None
+                if ok:
+                    status = await api.get_server_status()
             return ok, status
         ok, status = asyncio.run(_test())
     except Exception as e:
@@ -165,8 +165,8 @@ def admin_reset_panel(name):
         return jsonify({"error": f"未找到面板 '{name}'"}), 404
     try:
         async def _reset():
-            api = XUIApi(pconf["url"], pconf["username"], pconf["password"])
-            return await api.reset_all_client_traffic()
+            async with XUIApi(pconf["url"], pconf["username"], pconf["password"]) as api:
+                return await api.reset_all_client_traffic()
         ok = asyncio.run(_reset())
     except Exception as e:
         return jsonify({"error": f"重置失败: {e}"}), 500

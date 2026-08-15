@@ -15,7 +15,10 @@ from telegram.ext import (
 
 import config
 from xui_api import XUIApi
-from database import init_db, batch_record_traffic, get_daily_stats, get_panel_daily_stats, get_top_users
+from database import (
+    init_db, batch_record_traffic, cleanup_old_traffic,
+    get_daily_stats, get_panel_daily_stats, get_top_users,
+)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -121,8 +124,8 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if panel_config.get("disabled", False):
                 status_messages.append(f"- **{name}**: `已禁用`")
                 continue
-            api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
-            status = await api.get_server_status()
+            async with XUIApi(panel_config["url"], panel_config["username"], panel_config["password"]) as api:
+                status = await api.get_server_status()
             if status and 'xray' in status:
                 xray_status = status['xray'].get('state', 'N/A')
                 status_messages.append(f"- **{name}**: {xray_status.capitalize()}")
@@ -137,10 +140,10 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(f"未找到名为 '{panel_name}' 的面板配置。")
         return
 
-    api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
     await update.message.reply_text(f"正在获取 '{panel_name}' 的服务器状态，请稍候...")
 
-    status = await api.get_server_status()
+    async with XUIApi(panel_config["url"], panel_config["username"], panel_config["password"]) as api:
+        status = await api.get_server_status()
     if status and 'cpu' in status and 'mem' in status and 'disk' in status:
         cpu_percent = status.get('cpu', 0)
         mem = status.get('mem', {})
@@ -360,10 +363,10 @@ async def resetpanel_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"未找到面板 '{panel_name}'。")
         return
     await update.message.reply_text(f"正在重置 '{panel_name}' 的流量...")
-    api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
     initiator = update.effective_user
     init_name = initiator.full_name or initiator.username or str(initiator.id)
-    success = await api.reset_all_client_traffic()
+    async with XUIApi(panel_config["url"], panel_config["username"], panel_config["password"]) as api:
+        success = await api.reset_all_client_traffic()
     if success:
         await update.message.reply_text(f"✅ 面板 '{panel_name}' 流量重置成功！")
         msg = f"✅ **{panel_name}**: 流量重置成功！(手动重置，由 {init_name} 触发)"
@@ -416,8 +419,9 @@ async def set_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     password = context.user_data['panel_password']
     await update.message.reply_text("正在尝试连接面板...")
 
-    api = XUIApi(url, username, password)
-    if await api.login():
+    async with XUIApi(url, username, password) as api:
+        connected = await api.login()
+    if connected:
         config.add_or_update_panel(name, url, username, password)
         await update.message.reply_text(f"✅ 面板 '{name}' 连接成功！配置已保存。")
     else:
@@ -443,14 +447,15 @@ async def record_traffic_job(context: ContextTypes.DEFAULT_TYPE):
     for name, pconf in all_panels.items():
         if pconf.get("disabled", False):
             continue
-        api = XUIApi(pconf["url"], pconf["username"], pconf["password"])
-        clients = await api.get_all_clients()
+        async with XUIApi(pconf["url"], pconf["username"], pconf["password"]) as api:
+            clients = await api.get_all_clients()
         for c in clients:
             if not c["email"]:
                 continue
             records.append((name, c["email"], c["up"], c["down"],
                             c["total"], c["expiryTime"], today))
     batch_record_traffic(records)
+    cleanup_old_traffic()
     logger.info(f"Recorded {len(records)} traffic entries for {today}.")
 
 
@@ -540,13 +545,13 @@ async def check_inbounds_job(context: ContextTypes.DEFAULT_TYPE):
     for name, pconf in all_panels.items():
         if pconf.get("disabled", False):
             continue
-        api = XUIApi(pconf["url"], pconf["username"], pconf["password"])
-        if not await api.login():
-            logger.error(f"Panel '{name}' connection failed. Sending alert.")
-            for uid in admin_users:
-                await context.bot.send_message(chat_id=uid, text=f"🚨 **面板 '{name}' 离线告警**", parse_mode='Markdown')
-            continue
-        inbounds_data = await api.get_inbounds()
+        async with XUIApi(pconf["url"], pconf["username"], pconf["password"]) as api:
+            if not await api.login():
+                logger.error(f"Panel '{name}' connection failed. Sending alert.")
+                for uid in admin_users:
+                    await context.bot.send_message(chat_id=uid, text=f"🚨 **面板 '{name}' 离线告警**", parse_mode='Markdown')
+                continue
+            inbounds_data = await api.get_inbounds()
         if inbounds_data and inbounds_data.get("success"):
             three_days_later = (datetime.now() + timedelta(days=3)).timestamp() * 1000
             for inbound in inbounds_data.get("obj", []):
@@ -578,8 +583,9 @@ async def traffic_reset_job(context: ContextTypes.DEFAULT_TYPE):
         if today.day != reset_day:
             continue
         logger.info(f"Resetting traffic for panel '{name}' on day {reset_day}.")
-        api = XUIApi(pconf["url"], pconf["username"], pconf["password"])
-        if await api.reset_all_client_traffic():
+        async with XUIApi(pconf["url"], pconf["username"], pconf["password"]) as api:
+            reset_success = await api.reset_all_client_traffic()
+        if reset_success:
             msg = f"✅ **{name}**: 流量重置成功！(重置日: {reset_day}号)"
             logger.info(f"Successfully reset traffic for panel: {name}")
         else:

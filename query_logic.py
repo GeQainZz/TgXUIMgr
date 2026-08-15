@@ -16,10 +16,11 @@ async def query_user_data(panel_name: str, email: str) -> (bool, dict or str):
     panel_config = config.get_panel_config(panel_name)
     if not panel_config:
         return False, f"未找到名为 '{panel_name}' 的面板配置。"
+    if panel_config.get("disabled", False):
+        return False, f"面板 '{panel_name}' 已被禁用，无法查询。"
 
-    api = XUIApi(panel_config["url"], panel_config["username"], panel_config["password"])
-    
-    inbounds_data = await api.get_inbounds()
+    async with XUIApi(panel_config["url"], panel_config["username"], panel_config["password"]) as api:
+        inbounds_data = await api.get_inbounds()
     if not inbounds_data or not inbounds_data.get("success"):
         return False, "无法从面板获取数据，请稍后再试或联系管理员。"
 
