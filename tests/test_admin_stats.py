@@ -115,6 +115,18 @@ class AdminStatsTemplateTests(unittest.TestCase):
         self.assertIn("params.set('panel', selectedStatsPanel)", self.html)
         self.assertIn("onClick: (event, elements)", self.html)
 
+    def test_admin_layout_has_responsive_operations_shell(self):
+        for marker in (
+            'class="logo-mark"',
+            'class="sidebar-foot"',
+            'class="page-heading"',
+            'class="system-status"',
+            'class="section-intro"',
+            'table-card',
+            'prefers-reduced-motion',
+        ):
+            self.assertIn(marker, self.html)
+
 
 if __name__ == "__main__":
     unittest.main()

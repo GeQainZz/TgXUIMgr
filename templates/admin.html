@@ -97,12 +97,132 @@
             .stats-date-field input { width: 100%; min-width: 0; }
             .stats-range { text-align: left; }
         }
+
+        /* Operations UI refresh */
+        :root {
+            --sidebar-w: 244px;
+            --sidebar-bg: #111827;
+            --sidebar-muted: #9ca3af;
+            --bg: #f6f8fb;
+            --border: #e3e8f0;
+            --text: #172033;
+            --text-2: #687386;
+            --primary: #2563eb;
+            --primary-d: #1d4ed8;
+            --primary-soft: #eff6ff;
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 10px 28px rgba(15, 23, 42, 0.07);
+        }
+        body { background: var(--bg); color: var(--text); line-height: 1.5; }
+        .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-w); height: 100vh; min-height: 0; background: var(--sidebar-bg); box-shadow: 8px 0 24px rgba(15, 23, 42, 0.08); z-index: 110; }
+        .sidebar .logo { height: 78px; display: flex; align-items: center; gap: 0.75rem; padding: 0 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .logo-mark { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 36px; border-radius: 10px; background: #2563eb; color: #fff; font-size: 1.15rem; font-weight: 800; box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28); }
+        .logo-copy { min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+        .logo-copy strong { color: #fff; font-size: 0.92rem; white-space: nowrap; }
+        .logo-copy small { color: #7f8da5; font-size: 0.58rem; letter-spacing: 0.12em; white-space: nowrap; }
+        .sidebar nav { padding: 1.25rem 0.75rem; }
+        .sidebar nav a { min-height: 44px; margin: 0.25rem 0; padding: 0.7rem 0.9rem; border: 1px solid transparent; border-radius: 9px; color: var(--sidebar-muted); font-size: 0.84rem; transition: background 0.18s, color 0.18s, border-color 0.18s; }
+        .sidebar nav a:hover { background: rgba(255,255,255,0.055); color: #fff; }
+        .sidebar nav a.active { background: rgba(37, 99, 235, 0.18); border-color: rgba(96, 165, 250, 0.22); color: #fff; box-shadow: inset 3px 0 0 #60a5fa; }
+        .sidebar nav a.active .icon { color: #93c5fd; opacity: 1; }
+        .sidebar .icon { width: 18px; height: 18px; color: #aeb9ca; opacity: 0.85; }
+        .sidebar-foot { position: absolute; right: 1rem; bottom: 1.25rem; left: 1rem; display: flex; align-items: center; gap: 0.45rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.08); color: #8290a7; font-size: 0.72rem; }
+        .online-dot, .system-status i { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 4px rgba(52,211,153,0.12); }
+        .main { margin-left: var(--sidebar-w); min-height: 100vh; }
+        .topbar { height: 78px; padding: 0 2.25rem; background: rgba(255,255,255,0.92); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm); backdrop-filter: blur(10px); }
+        .page-heading { display: flex; flex-direction: column; gap: 0.05rem; }
+        .page-heading > span, .section-kicker { color: var(--primary); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; }
+        .topbar h2 { color: var(--text); font-size: 1.15rem; font-weight: 700; }
+        .topbar-actions { display: flex; align-items: center; gap: 1rem; }
+        .system-status { display: inline-flex; align-items: center; gap: 0.45rem; color: #4b5563; font-size: 0.75rem; }
+        .logout-link { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.65rem; border-radius: 7px; color: var(--text-2); font-size: 0.78rem; transition: background 0.18s, color 0.18s; }
+        .logout-link:hover { background: #f1f5f9; color: var(--text); }
+        .logout-link svg { width: 16px; height: 16px; }
+        .content { max-width: 1560px; margin: 0 auto; padding: 2rem 2.25rem 3rem; }
+        .section-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.35rem; }
+        .section-intro h3 { margin-top: 0.15rem; color: var(--text); font-size: 1.35rem; line-height: 1.2; font-weight: 750; }
+        .section-note { padding-bottom: 0.15rem; color: var(--text-2); font-size: 0.75rem; }
+        .card, .stat-card { border-color: var(--border); border-radius: 10px; box-shadow: var(--shadow-sm); }
+        .card { padding: 1.35rem; margin-bottom: 1.25rem; }
+        .card:hover { box-shadow: var(--shadow-md); }
+        .card-title { color: #7b8798; font-size: 0.68rem; letter-spacing: 0.11em; }
+        .stats-grid { gap: 1.25rem; margin-bottom: 1.25rem; }
+        .stat-card { position: relative; min-height: 116px; padding: 1.25rem 1.3rem; overflow: hidden; background: #fff; }
+        .stat-card::after { content: ''; position: absolute; right: -18px; bottom: -28px; width: 90px; height: 90px; border: 1px solid rgba(37,99,235,0.08); border-radius: 50%; }
+        .stat-card .label { color: #7b8798; font-size: 0.68rem; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
+        .stat-card .value { margin-top: 0.4rem; color: var(--text); font-size: 1.45rem; letter-spacing: 0; }
+        .stat-card .sub { color: var(--primary); font-size: 0.72rem; }
+        .chart-container { min-height: 220px; }
+        .table-card { padding: 0; overflow-x: auto; }
+        .table-card-head { padding: 1.2rem 1.35rem 0.1rem; }
+        table { min-width: 600px; font-size: 0.82rem; }
+        th { padding: 0.75rem 1rem; background: #fbfcfe; border-bottom: 1px solid var(--border); color: #7b8798; font-size: 0.64rem; letter-spacing: 0.1em; }
+        td { padding: 0.8rem 1rem; border-bottom: 1px solid #edf0f4; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #f8fbff; }
+        .btn { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 0.42rem; padding: 0.45rem 0.85rem; border-radius: 7px; font-weight: 600; }
+        .btn svg { width: 15px; height: 15px; }
+        .btn-primary { box-shadow: 0 4px 10px rgba(37,99,235,0.16); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(37,99,235,0.22); }
+        .btn-sm { min-height: 30px; }
+        .inline-form { display: flex; align-items: center; gap: 0.55rem; }
+        .inline-form input { width: 130px; height: 36px; padding: 0 0.7rem; border: 1px solid #d5dce6; border-radius: 7px; background: #fff; font-size: 0.8rem; }
+        input, select { color: var(--text); }
+        input::placeholder { color: #a2adbb; }
+        input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,0.2); outline-offset: 2px; }
+        .seg-control { margin-bottom: 1.25rem; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: #eef2f7; }
+        .seg-control button { min-height: 32px; padding: 0.38rem 0.95rem; border-radius: 6px; font-weight: 550; }
+        .seg-control button.active { box-shadow: var(--shadow-sm); }
+        .stats-toolbar { margin-bottom: 1.25rem; }
+        .stats-date-tools { padding: 0.45rem 0.6rem; border: 1px solid var(--border); border-radius: 9px; background: #fff; box-shadow: var(--shadow-sm); }
+        .stats-date-field input { border-color: transparent; background: transparent; }
+        .stats-range { color: #8390a2; }
+        .stats-empty-state { border-color: #cbd5e1; background: #fff; }
+        .badge { border-radius: 5px; font-weight: 650; }
+        .modal-overlay { background: rgba(15, 23, 42, 0.48); backdrop-filter: blur(3px); }
+        .modal { border: 1px solid var(--border); border-radius: 12px; padding: 1.6rem; box-shadow: 0 24px 70px rgba(15,23,42,0.2); }
+        .modal h3 { font-size: 1.15rem; }
+        .form-row input, .form-row select { border-color: #d5dce6; border-radius: 7px; }
+        .toggle-row { padding: 0.85rem 0; }
+        .toast { right: 2rem; bottom: 2rem; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 12px 30px rgba(15,23,42,0.18); }
+        @media (max-width: 860px) {
+            .sidebar { width: 72px; }
+            .sidebar .logo { justify-content: center; padding: 0; }
+            .logo-copy, .sidebar nav a span, .sidebar-foot span:last-child { display: none; }
+            .sidebar nav a { justify-content: center; padding: 0.7rem; }
+            .sidebar-foot { justify-content: center; right: 0.65rem; left: 0.65rem; }
+            .main { margin-left: 72px; }
+            .topbar { padding: 0 1.25rem; }
+            .content { padding: 1.5rem 1.25rem 2rem; }
+        }
+        @media (max-width: 600px) {
+            .topbar { height: 68px; }
+            .page-heading > span, .system-status { display: none; }
+            .topbar h2 { font-size: 1rem; }
+            .content { padding: 1.25rem 0.85rem 2rem; }
+            .section-intro { align-items: flex-start; flex-direction: column; }
+            .section-intro .btn, .inline-form { width: 100%; }
+            .inline-form input { flex: 1; width: auto; }
+            .stats-toolbar { align-items: stretch; }
+            .stats-toolbar .seg-control { width: 100%; }
+            .stats-toolbar .seg-control button { flex: 1; }
+            .stats-date-tools { justify-content: space-between; }
+            .stats-date-field { flex: 1; }
+            .stats-date-field input { width: 100%; min-width: 0; }
+            .card { padding: 1rem; }
+            .table-card { padding: 0; }
+            .table-card-head { padding: 1rem 1rem 0.1rem; }
+            .toast { right: 1rem; bottom: 1rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+        }
     </style>
     <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%2016%27%3E%3Crect%20width%3D%2716%27%20height%3D%2716%27%20rx%3D%273%27%20fill%3D%27%232563eb%27%2F%3E%3Ctext%20x%3D%278%27%20y%3D%2711%27%20font-size%3D%279%27%20text-anchor%3D%27middle%27%20fill%3D%27white%27%20font-family%3D%27Arial%27%3EX%3C%2Ftext%3E%3C%2Fsvg%3E">
 </head>
 <body>
 <div class="sidebar">
-    <div class="logo">XUI 管理后台</div>
+    <div class="logo"><div class="logo-mark">X</div><div class="logo-copy"><strong>XUI 管理后台</strong><small>TRAFFIC CONTROL</small></div></div>
     <nav>
         <a class="active" data-tab="dashboard"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>仪表盘</span></a>
         <a data-tab="panels"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>面板管理</span></a>
@@ -110,16 +230,18 @@
         <a data-tab="stats"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>流量统计</span></a>
         <a data-tab="settings"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>设置</span></a>
     </nav>
+    <div class="sidebar-foot"><span class="online-dot"></span><span>系统运行中</span></div>
 </div>
 
 <div class="main">
     <div class="topbar">
-        <h2 id="page-title">仪表盘</h2>
-        <a href="/admin/logout">退出登录</a>
+        <div class="page-heading"><span>CONTROL CENTER</span><h2 id="page-title">仪表盘</h2></div>
+        <div class="topbar-actions"><span class="system-status"><i></i>在线</span><a class="logout-link" href="/admin/logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-6"/></svg><span>退出登录</span></a></div>
     </div>
     <div class="content">
         <!-- Dashboard Tab -->
         <div class="tab-section active" id="tab-dashboard">
+            <div class="section-intro"><div><span class="section-kicker">OVERVIEW</span><h3>运行概览</h3></div><span class="section-note">实时状态</span></div>
             <div class="stats-grid" id="dash-stats"></div>
             <div class="card">
                 <div class="card-title">近30天每日流量趋势</div>
@@ -133,11 +255,9 @@
 
         <!-- Panels Tab -->
         <div class="tab-section" id="tab-panels">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h3 style="font-size:1rem;">面板列表</h3>
-                <button class="btn btn-primary" onclick="showPanelModal()">+ 添加面板</button>
+            <div class="section-intro"><div><span class="section-kicker">NODES</span><h3>面板列表</h3></div><button class="btn btn-primary" onclick="showPanelModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加面板</button>
             </div>
-            <div class="card" style="padding:0;overflow:hidden;">
+            <div class="card table-card">
                 <table>
                     <thead><tr><th>名称</th><th>URL</th><th>状态</th><th>重置日</th><th>操作</th></tr></thead>
                     <tbody id="panels-tbody"></tbody>
@@ -147,14 +267,9 @@
 
         <!-- Users Tab -->
         <div class="tab-section" id="tab-users">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h3 style="font-size:1rem;">授权用户</h3>
-                <div style="display:flex;gap:0.5rem;">
-                    <input id="new-uid" type="number" placeholder="用户ID" style="padding:0.4rem 0.6rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.8rem;width:120px;">
-                    <button class="btn btn-primary" onclick="addUser()">添加</button>
-                </div>
+            <div class="section-intro"><div><span class="section-kicker">ACCESS</span><h3>授权用户</h3></div><div class="inline-form"><input id="new-uid" type="number" placeholder="用户 ID"><button class="btn btn-primary" onclick="addUser()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加</button></div>
             </div>
-            <div class="card" style="padding:0;overflow:hidden;">
+            <div class="card table-card">
                 <table>
                     <thead><tr><th>角色</th><th>用户ID</th><th>操作</th></tr></thead>
                     <tbody id="users-tbody"></tbody>
@@ -164,6 +279,7 @@
 
         <!-- Stats Tab -->
         <div class="tab-section" id="tab-stats">
+            <div class="section-intro"><div><span class="section-kicker">ANALYTICS</span><h3>流量统计</h3></div><span class="section-note">按快照日期统计</span></div>
             <div class="stats-toolbar">
                 <div class="seg-control" id="stats-period-control">
                     <button data-period="day" class="active">按天</button>
@@ -190,8 +306,8 @@
                 <div class="card-title">各面板流量对比</div>
                 <div class="chart-container" style="height:220px;"><canvas id="chart-stats-panel"></canvas></div>
             </div>
-            <div class="card" style="padding:0;overflow:hidden;">
-                <div style="padding:1rem 1.25rem 0;"><div class="card-title" id="stats-top-title" style="margin-bottom:0;">各面板 Top 20 用户</div></div>
+            <div class="card table-card">
+                <div class="table-card-head"><div class="card-title" id="stats-top-title" style="margin-bottom:0;">各面板 Top 20 用户</div></div>
                 <table>
                     <thead><tr><th>#</th><th>用户</th><th>面板</th><th style="text-align:right;">用量</th></tr></thead>
                     <tbody id="stats-top-tbody"></tbody>
@@ -201,6 +317,7 @@
 
         <!-- Settings Tab -->
         <div class="tab-section" id="tab-settings">
+            <div class="section-intro"><div><span class="section-kicker">SYSTEM</span><h3>设置</h3></div><span class="section-note">自动化与统计口径</span></div>
             <div class="card">
                 <div class="card-title">自动化任务</div>
                 <div class="toggle-row">
