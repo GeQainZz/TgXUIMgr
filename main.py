@@ -454,22 +454,15 @@ async def record_traffic_job(context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Recorded {len(records)} traffic entries for {today}.")
 
 
-async def _generate_daily_report_text() -> str:
-    """Build the daily traffic report message from the database."""
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    # Use yesterday's data for the report (full day)
-    stats = get_daily_stats(yesterday, yesterday)
-    panel_stats = get_panel_daily_stats(yesterday, yesterday)
-    top_users = get_top_users(yesterday, yesterday, limit=10)
-
+def _format_daily_report_text(report_date: str, stats: list,
+                              panel_stats: list, top_users_by_panel: dict) -> str:
+    """Format a daily report with user rankings kept separate per panel."""
     total_upload = sum(s["total_upload"] for s in stats)
     total_download = sum(s["total_download"] for s in stats)
     total_traffic = total_upload + total_download
 
     lines = [
-        f"📊 **每日流量日报 ({yesterday})**\n",
+        f"📊 **每日流量日报 ({report_date})**\n",
         f"**总用量**: {_bytes_to_gb(total_traffic)} GB",
         f"  - 上传: {_bytes_to_gb(total_upload)} GB",
         f"  - 下载: {_bytes_to_gb(total_download)} GB\n",
@@ -481,12 +474,36 @@ async def _generate_daily_report_text() -> str:
             lines.append(f"  - {ps['panel_name']}: {_bytes_to_gb(ps['daily_total'])} GB")
         lines.append("")
 
-    if top_users:
-        lines.append("**Top 10 用户:**")
-        for i, u in enumerate(top_users, 1):
-            lines.append(f"  {i}. {u['email']} ({u['panel_name']}): {_bytes_to_gb(u['total_usage'])} GB")
+    for panel_name in (ps["panel_name"] for ps in panel_stats):
+        panel_users = top_users_by_panel.get(panel_name, [])
+        if not panel_users:
+            continue
+        lines.append(f"**{panel_name} 用户用量 Top 10:**")
+        for i, user in enumerate(panel_users[:10], 1):
+            lines.append(
+                f"  {i}. {user['email']} ({panel_name}): "
+                f"{_bytes_to_gb(user['total_usage'])} GB"
+            )
+        lines.append("")
 
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip()
+
+
+async def _generate_daily_report_text() -> str:
+    """Build the daily traffic report message from the database."""
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # Use yesterday's data for the report (full day).
+    stats = get_daily_stats(yesterday, yesterday)
+    panel_stats = get_panel_daily_stats(yesterday, yesterday)
+    top_users_by_panel = {
+        ps["panel_name"]: get_top_users(
+            yesterday, yesterday, panel_name=ps["panel_name"], limit=10
+        )
+        for ps in panel_stats
+    }
+
+    return _format_daily_report_text(yesterday, stats, panel_stats, top_users_by_panel)
 
 
 async def daily_report_job(context: ContextTypes.DEFAULT_TYPE):
