@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XUI 管理后台</title>
+    <script src="/static/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --sidebar-w: 220px; --primary: #2563eb; --primary-d: #1d4ed8; --bg: #f0f2f5; --card: #fff; --border: #e5e7eb; --text: #1f2937; --text-2: #6b7280; --green: #16a34a; --red: #dc2626; --amber: #f59e0b; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); display: flex; }
+        .sidebar { width: var(--sidebar-w); background: #1a1a2e; min-height: 100vh; color: #fff; flex-shrink: 0; position: sticky; top: 0; }
+        .sidebar .logo { padding: 1.2rem 1.2rem; font-size: 1.05rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .sidebar nav a { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1.2rem; color: rgba(255,255,255,0.65); text-decoration: none; font-size: 0.875rem; cursor: pointer; transition: all 0.15s; }
+        .sidebar nav a:hover, .sidebar nav a.active { background: rgba(255,255,255,0.08); color: #fff; }
+        .sidebar .icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+        .main { flex: 1; min-width: 0; }
+        .topbar { height: 52px; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; }
+        .topbar h2 { font-size: 1rem; font-weight: 600; }
+        .topbar a { color: var(--text-2); font-size: 0.8rem; text-decoration: none; }
+        .content { padding: 1.5rem; }
+        .tab-section { display: none; }
+        .tab-section.active { display: block; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+        .card-title { font-size: 0.8rem; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; }
+        .stat-card .label { font-size: 0.75rem; color: var(--text-2); margin-bottom: 0.4rem; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+        .stat-card .sub { font-size: 0.75rem; color: var(--text-2); margin-top: 0.3rem; }
+        .chart-container { position: relative; height: 280px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 2px solid var(--border); color: var(--text-2); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+        td { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); }
+        tr:hover { background: #f9fafb; }
+        .btn { padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-d); }
+        .btn-danger { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
+        .btn-danger:hover { background: #fee2e2; }
+        .btn-sm { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
+        .btn-success { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; }
+        .btn-success:hover { background: #dcfce7; }
+        .btn-amber { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .btn-amber:hover { background: #fef3c7; }
+        .btn-ghost { background: #f3f4f6; color: var(--text); }
+        .btn-ghost:hover { background: #e5e7eb; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: none; align-items: center; justify-content: center; z-index: 200; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: #fff; border-radius: 10px; padding: 1.5rem; width: 90%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+        .modal h3 { font-size: 1.05rem; margin-bottom: 1rem; }
+        .form-row { margin-bottom: 0.9rem; }
+        .form-row label { display: block; font-size: 0.8rem; color: var(--text-2); margin-bottom: 0.3rem; }
+        .form-row input, .form-row select { width: 100%; padding: 0.55rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem; }
+        .form-row input:focus, .form-row select:focus { outline: none; border-color: var(--primary); }
+        .toggle { position: relative; width: 44px; height: 24px; background: #d1d5db; border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+        .toggle.on { background: var(--green); }
+        .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+        .toggle.on::after { transform: translateX(20px); }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 0.875rem; }
+        .toggle-desc { font-size: 0.75rem; color: var(--text-2); margin-top: 0.15rem; }
+        .seg-control { display: inline-flex; background: #e5e7eb; border-radius: 8px; padding: 2px; margin-bottom: 1rem; }
+        .seg-control button { padding: 0.4rem 1rem; border: none; background: none; font-size: 0.8rem; border-radius: 6px; cursor: pointer; color: var(--text-2); }
+        .seg-control button.active { background: #fff; color: var(--primary); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stats-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .stats-toolbar .seg-control { margin-bottom: 0; }
+        .stats-date-tools { display: flex; align-items: center; justify-content: flex-end; gap: 0.45rem; flex-wrap: wrap; }
+        .stats-date-field { display: flex; align-items: center; gap: 0.45rem; color: var(--text-2); font-size: 0.75rem; }
+        .stats-date-field input { height: 34px; padding: 0 0.55rem; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: var(--text); font-size: 0.8rem; }
+        .stats-date-field input:focus { outline: none; border-color: var(--primary); }
+        .icon-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: var(--text); cursor: pointer; flex: 0 0 34px; }
+        .icon-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+        .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .icon-btn svg { width: 17px; height: 17px; }
+        .stats-range { width: 100%; color: var(--text-2); font-size: 0.75rem; text-align: right; min-height: 1rem; }
+        .stats-empty-state { background: #fff; border: 1px dashed #d1d5db; border-radius: 8px; color: var(--text-2); padding: 0.8rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; text-align: center; }
+        [hidden] { display: none !important; }
+        .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 500; }
+        .badge-green { background: #f0fdf4; color: var(--green); }
+        .badge-gray { background: #f3f4f6; color: var(--text-2); }
+        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a1a2e; color: #fff; padding: 0.7rem 1.2rem; border-radius: 8px; font-size: 0.85rem; z-index: 300; transition: opacity 0.3s; opacity: 0; pointer-events: none; }
+        .toast.show { opacity: 1; }
+        .toast.error { background: var(--red); }
+        .empty { text-align: center; color: var(--text-2); padding: 2rem; font-size: 0.85rem; }
+        .panel-name { font-weight: 600; }
+        .actions { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+        @media (max-width: 768px) {
+            .sidebar { width: 56px; }
+            .sidebar .logo { font-size: 0.7rem; padding: 1rem 0.5rem; }
+            .sidebar nav a span { display: none; }
+            .content { padding: 1rem; }
+            .stats-toolbar, .stats-date-tools { align-items: stretch; }
+            .stats-date-tools { width: 100%; justify-content: flex-start; }
+            .stats-date-field { flex: 1; }
+            .stats-date-field input { width: 100%; min-width: 0; }
+            .stats-range { text-align: left; }
+        }
+    </style>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%2016%27%3E%3Crect%20width%3D%2716%27%20height%3D%2716%27%20rx%3D%273%27%20fill%3D%27%232563eb%27%2F%3E%3Ctext%20x%3D%278%27%20y%3D%2711%27%20font-size%3D%279%27%20text-anchor%3D%27middle%27%20fill%3D%27white%27%20font-family%3D%27Arial%27%3EX%3C%2Ftext%3E%3C%2Fsvg%3E">
+</head>
+<body>
+<div class="sidebar">
+    <div class="logo">XUI 管理后台</div>
+    <nav>
+        <a class="active" data-tab="dashboard"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>仪表盘</span></a>
+        <a data-tab="panels"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>面板管理</span></a>
+        <a data-tab="users"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>用户管理</span></a>
+        <a data-tab="stats"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>流量统计</span></a>
+        <a data-tab="settings"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>设置</span></a>
+    </nav>
+</div>
+
+<div class="main">
+    <div class="topbar">
+        <h2 id="page-title">仪表盘</h2>
+        <a href="/admin/logout">退出登录</a>
+    </div>
+    <div class="content">
+        <!-- Dashboard Tab -->
+        <div class="tab-section active" id="tab-dashboard">
+            <div class="stats-grid" id="dash-stats"></div>
+            <div class="card">
+                <div class="card-title">近30天每日流量趋势</div>
+                <div class="chart-container"><canvas id="chart-dash-trend"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">各面板用户概览</div>
+                <div id="dash-panel-summary"></div>
+            </div>
+        </div>
+
+        <!-- Panels Tab -->
+        <div class="tab-section" id="tab-panels">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h3 style="font-size:1rem;">面板列表</h3>
+                <button class="btn btn-primary" onclick="showPanelModal()">+ 添加面板</button>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden;">
+                <table>
+                    <thead><tr><th>名称</th><th>URL</th><th>状态</th><th>重置日</th><th>操作</th></tr></thead>
+                    <tbody id="panels-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-section" id="tab-users">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h3 style="font-size:1rem;">授权用户</h3>
+                <div style="display:flex;gap:0.5rem;">
+                    <input id="new-uid" type="number" placeholder="用户ID" style="padding:0.4rem 0.6rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.8rem;width:120px;">
+                    <button class="btn btn-primary" onclick="addUser()">添加</button>
+                </div>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden;">
+                <table>
+                    <thead><tr><th>角色</th><th>用户ID</th><th>操作</th></tr></thead>
+                    <tbody id="users-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Stats Tab -->
+        <div class="tab-section" id="tab-stats">
+            <div class="stats-toolbar">
+                <div class="seg-control" id="stats-period-control">
+                    <button data-period="day" class="active">按天</button>
+                    <button data-period="week">按周</button>
+                    <button data-period="month">按月</button>
+                </div>
+                <div class="stats-date-tools">
+                    <button class="icon-btn" id="stats-prev" type="button" title="上一个周期" aria-label="上一个周期" onclick="shiftStatsDate(-1)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <label class="stats-date-field">
+                        <span id="stats-date-caption">日期</span>
+                        <input id="stats-date" type="date" onchange="selectStatsDate(this.value)">
+                    </label>
+                    <button class="icon-btn" id="stats-next" type="button" title="下一个周期" aria-label="下一个周期" onclick="shiftStatsDate(1)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                    <div class="stats-range" id="stats-range-label"></div>
+                </div>
+            </div>
+            <div class="stats-empty-state" id="stats-empty" hidden>所选统计范围暂无流量数据</div>
+            <div class="stats-grid" id="stats-cards"></div>
+            <div class="card">
+                <div class="card-title">每日流量趋势</div>
+                <div class="chart-container"><canvas id="chart-stats-trend"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">各面板流量对比</div>
+                <div class="chart-container" style="height:220px;"><canvas id="chart-stats-panel"></canvas></div>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden;">
+                <div style="padding:1rem 1.25rem 0;"><div class="card-title" style="margin-bottom:0;">Top 20 用户</div></div>
+                <table>
+                    <thead><tr><th>#</th><th>用户</th><th>面板</th><th style="text-align:right;">用量</th></tr></thead>
+                    <tbody id="stats-top-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-section" id="tab-settings">
+            <div class="card">
+                <div class="card-title">自动化任务</div>
+                <div class="toggle-row">
+                    <div><div class="toggle-label">月度流量重置</div><div class="toggle-desc">对所有面板在各自重置日自动重置流量</div></div>
+                    <div class="toggle" id="toggle-monthly" onclick="toggleMonthly()"></div>
+                </div>
+                <div class="toggle-row">
+                    <div><div class="toggle-label">每日流量日报</div><div class="toggle-desc">每天向管理员推送流量日报</div></div>
+                    <div style="display:flex;align-items:center;gap:0.8rem;">
+                        <div class="toggle" id="toggle-report" onclick="toggleReport()"></div>
+                        <select id="report-hour" style="padding:0.3rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.8rem;" onchange="saveReportHour()"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">流量统计方式</div>
+                <div class="seg-control" id="accounting-control" style="margin-bottom:0;">
+                    <button data-mode="unidirectional" class="active">单向</button>
+                    <button data-mode="bidirectional">双向 (x2)</button>
+                </div>
+                <p style="font-size:0.75rem;color:var(--text-2);margin-top:0.5rem;">双向模式会将面板报告的流量乘以2</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel Modal -->
+<div class="modal-overlay" id="panel-modal">
+    <div class="modal">
+        <h3 id="panel-modal-title">添加面板</h3>
+        <input type="hidden" id="pm-original-name">
+        <div class="form-row"><label>面板名称</label><input id="pm-name" placeholder="如：新加坡节点"></div>
+        <div class="form-row"><label>面板 URL</label><input id="pm-url" placeholder="http://ip:port/path"></div>
+        <div class="form-row"><label>用户名</label><input id="pm-username" placeholder="admin"></div>
+        <div class="form-row"><label>密码</label><input id="pm-password" type="password" placeholder="密码"></div>
+        <div class="form-row"><label>流量重置日 (1-28)</label>
+            <select id="pm-reset-day" style="width:100%;padding:0.55rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.875rem;"></select>
+        </div>
+        <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;">
+            <button class="btn btn-ghost" onclick="hidePanelModal()">取消</button>
+            <button class="btn btn-primary" onclick="savePanel()">保存</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function fmtBytes(b) {
+    if (!b || b < 0) return '0 B';
+    const u = ['B','KB','MB','GB','TB']; let i = 0;
+    while (b >= 1024 && i < u.length-1) { b /= 1024; i++; }
+    return b.toFixed(2) + ' ' + u[i];
+}
+function fmtGB(b) { return (b / 1073741824).toFixed(2) + ' GB'; }
+
+function toast(msg, isErr) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isErr ? ' error' : '');
+    setTimeout(() => el.className = 'toast' + (isErr ? ' error' : ''), 3000);
+}
+
+async function api(url, opts) {
+    const r = await fetch(url, opts);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Request failed');
+    return d;
+}
+
+// --- Tab switching ---
+const titles = {dashboard:'仪表盘', panels:'面板管理', users:'用户管理', stats:'流量统计', settings:'设置'};
+document.querySelectorAll('.sidebar nav a').forEach(a => {
+    a.onclick = () => {
+        document.querySelectorAll('.sidebar nav a').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.tab-section').forEach(x => x.classList.remove('active'));
+        a.classList.add('active');
+        document.getElementById('tab-' + a.dataset.tab).classList.add('active');
+        document.getElementById('page-title').textContent = titles[a.dataset.tab];
+        if (a.dataset.tab === 'dashboard') loadDashboard();
+        if (a.dataset.tab === 'panels') loadPanels();
+        if (a.dataset.tab === 'users') loadUsers();
+        if (a.dataset.tab === 'stats') loadStats(currentPeriod);
+        if (a.dataset.tab === 'settings') loadSettings();
+    };
+});
+
+// --- Dashboard ---
+let dashChart = null;
+async function loadDashboard() {
+    try {
+        const d = await api('/api/admin/stats/overview');
+        // Stats cards
+        const total30 = (d.daily || []).reduce((s, x) => s + x.daily_total, 0);
+        const panels = Object.keys(d.panel_summary || {});
+        let totalUsers = 0, totalUsed = 0, totalLimit = 0;
+        for (const pn in d.panel_summary) {
+            totalUsers += d.panel_summary[pn].total_users;
+            totalUsed += d.panel_summary[pn].total_used;
+            totalLimit += d.panel_summary[pn].total_limit;
+        }
+        document.getElementById('dash-stats').innerHTML = [
+            {label:'近30天总流量', value: fmtGB(total30)},
+            {label:'面板数量', value: panels.length},
+            {label:'总用户数', value: totalUsers},
+            {label:'当前累计已用', value: fmtGB(totalUsed)},
+            {label:'总流量配额', value: fmtGB(totalLimit)},
+        ].map(s => `<div class="stat-card"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join('');
+
+        // Trend chart
+        if (dashChart) dashChart.destroy();
+        const ctx = document.getElementById('chart-dash-trend').getContext('2d');
+        const labels = (d.daily || []).map(x => x.record_date);
+        const data = (d.daily || []).map(x => +(x.daily_total / 1073741824).toFixed(2));
+        dashChart = new Chart(ctx, {type:'line', data:{labels, datasets:[{label:'每日流量(GB)', data, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.1)', fill:true, tension:0.3}]},
+            options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+
+        // Panel summary
+        const ps = d.panel_summary || {};
+        let html = '<table><thead><tr><th>面板</th><th>用户数</th><th style="text-align:right;">已用</th><th style="text-align:right;">配额</th></tr></thead><tbody>';
+        for (const pn in ps) {
+            html += `<tr><td class="panel-name">${pn}</td><td>${ps[pn].total_users}</td><td style="text-align:right;">${fmtGB(ps[pn].total_used)}</td><td style="text-align:right;">${fmtGB(ps[pn].total_limit)}</td></tr>`;
+        }
+        if (!Object.keys(ps).length) html += '<tr><td colspan="4" class="empty">暂无数据</td></tr>';
+        html += '</tbody></table>';
+        document.getElementById('dash-panel-summary').innerHTML = html;
+    } catch(e) { toast(e.message, true); }
+}
+
+// --- Panels ---
+async function loadPanels() {
+    try {
+        const panels = await api('/api/admin/panels');
+        let html = '';
+        if (!panels.length) { html = '<tr><td colspan="5" class="empty">暂无面板，点击右上角添加</td></tr>'; }
+        else {
+            panels.forEach(p => {
+                const dis = p.disabled;
+                html += `<tr${dis ? ' style="opacity:0.5;"' : ''}>
+                    <td class="panel-name">${p.name}</td>
+                    <td style="font-size:0.75rem;color:var(--text-2);max-width:300px;overflow:hidden;text-overflow:ellipsis;">${p.url}</td>
+                    <td>${dis ? '<span class="badge badge-gray">已禁用</span>' : '<span class="badge badge-green">正常</span>'}</td>
+                    <td>每月${p.reset_day || 1}号</td>
+                    <td><div class="actions">
+                        ${dis ? '' : `<button class="btn btn-sm btn-success" onclick="testPanel('${p.name}')">测试</button>`}
+                        ${dis ? '' : `<button class="btn btn-sm btn-amber" onclick="resetPanel('${p.name}')">重置流量</button>`}
+                        ${dis ? `<button class="btn btn-sm btn-success" onclick="enablePanel('${p.name}')">启用</button>` : `<button class="btn btn-sm btn-ghost" onclick="disablePanel('${p.name}')">禁用</button>`}
+                        <button class="btn btn-sm btn-ghost" onclick="showPanelModal('${p.name}')">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="deletePanel('${p.name}')">删除</button>
+                    </div></td>
+                </tr>`;
+            });
+        }
+        document.getElementById('panels-tbody').innerHTML = html;
+    } catch(e) { toast(e.message, true); }
+}
+
+function showPanelModal(name) {
+    const modal = document.getElementById('panel-modal');
+    document.getElementById('panel-modal-title').textContent = name ? '编辑面板' : '添加面板';
+    document.getElementById('pm-original-name').value = name || '';
+    // Populate reset day options
+    const sel = document.getElementById('pm-reset-day');
+    sel.innerHTML = Array.from({length:28}, (_,i) => `<option value="${i+1}">${i+1}号</option>`).join('');
+    if (name) {
+        api('/api/admin/panels').then(panels => {
+            const p = panels.find(x => x.name === name);
+            if (p) {
+                document.getElementById('pm-name').value = p.name;
+                document.getElementById('pm-url').value = p.url;
+                document.getElementById('pm-username').value = p.username;
+                document.getElementById('pm-password').value = '';
+                sel.value = p.reset_day || 1;
+            }
+        });
+    } else {
+        document.getElementById('pm-name').value = '';
+        document.getElementById('pm-url').value = '';
+        document.getElementById('pm-username').value = '';
+        document.getElementById('pm-password').value = '';
+        sel.value = 1;
+    }
+    modal.classList.add('show');
+}
+function hidePanelModal() { document.getElementById('panel-modal').classList.remove('show'); }
+
+async function savePanel() {
+    const name = document.getElementById('pm-name').value.trim();
+    const url = document.getElementById('pm-url').value.trim();
+    const username = document.getElementById('pm-username').value.trim();
+    const password = document.getElementById('pm-password').value.trim();
+    const reset_day = parseInt(document.getElementById('pm-reset-day').value);
+    if (!name || !url || !username) return toast('请填写所有必填项', true);
+    const orig = document.getElementById('pm-original-name').value;
+    try {
+        let body = {name, url, username, reset_day};
+        if (orig) body.original_name = orig;
+        if (password) body.password = password;
+        else body.keep_password = true;
+        await api('/api/admin/panels', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        if (orig && orig !== name) {
+            try { await api('/api/admin/panels/' + encodeURIComponent(orig), {method:'DELETE'}); } catch(e) {}
+        }
+        toast('面板已保存');
+        hidePanelModal();
+        loadPanels();
+    } catch(e) { toast(e.message, true); }
+}
+
+
+async function testPanel(name) {
+    toast('正在测试连接...');
+    try {
+        const r = await api('/api/admin/panels/' + encodeURIComponent(name) + '/test', {method:'POST'});
+        toast('连接成功！');
+    } catch(e) { toast(e.message, true); }
+}
+async function resetPanel(name) {
+    if (!confirm(`确认重置面板 '${name}' 的所有流量？`)) return;
+    try {
+        await api('/api/admin/panels/' + encodeURIComponent(name) + '/reset', {method:'POST'});
+        toast('流量已重置');
+    } catch(e) { toast(e.message, true); }
+}
+async function deletePanel(name) {
+    if (!confirm(`确认删除面板 '${name}'？`)) return;
+    try {
+        await api('/api/admin/panels/' + encodeURIComponent(name), {method:'DELETE'});
+        toast('面板已删除');
+        loadPanels();
+    } catch(e) { toast(e.message, true); }
+}
+
+async function disablePanel(name) {
+    if (!confirm(`确认禁用面板 '${name}'？\n禁用后面板将不再参与状态检查、日报采集与流量重置，且用户无法查询该面板。`)) return;
+    try {
+        await api('/api/admin/panels/' + encodeURIComponent(name) + '/disable', {method:'POST'});
+        toast('面板已禁用');
+        loadPanels();
+    } catch(e) { toast(e.message, true); }
+}
+async function enablePanel(name) {
+    try {
+        await api('/api/admin/panels/' + encodeURIComponent(name) + '/enable', {method:'POST'});
+        toast('面板已启用');
+        loadPanels();
+    } catch(e) { toast(e.message, true); }
+}
+
+// --- Users ---
+async function loadUsers() {
+    try {
+        const d = await api('/api/admin/users');
+        let html = '';
+        d.admin_users.forEach(uid => {
+            html += `<tr><td><span class="badge badge-green">管理员</span></td><td>${uid}</td><td>-</td></tr>`;
+        });
+        if (d.normal_users.length === 0) {
+            html += '<tr><td><span class="badge badge-gray">普通用户</span></td><td colspan="2" style="color:var(--text-2);">暂无普通用户</td></tr>';
+        } else {
+            d.normal_users.forEach(uid => {
+                html += `<tr><td><span class="badge badge-gray">普通用户</span></td><td>${uid}</td><td><button class="btn btn-sm btn-danger" onclick="delUser(${uid})">删除</button></td></tr>`;
+            });
+        }
+        document.getElementById('users-tbody').innerHTML = html;
+    } catch(e) { toast(e.message, true); }
+}
+async function addUser() {
+    const uid = document.getElementById('new-uid').value.trim();
+    if (!uid) return;
+    try {
+        await api('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id: uid})});
+        toast('用户已添加');
+        document.getElementById('new-uid').value = '';
+        loadUsers();
+    } catch(e) { toast(e.message, true); }
+}
+async function delUser(uid) {
+    try {
+        await api('/api/admin/users/' + uid, {method:'DELETE'});
+        toast('用户已删除');
+        loadUsers();
+    } catch(e) { toast(e.message, true); }
+}
+
+// --- Stats ---
+let statsTrendChart = null, statsPanelChart = null;
+let currentPeriod = 'day';
+let statsSelectedDate = '';
+let statsAvailableStart = '';
+let statsAvailableEnd = '';
+
+function parseLocalDate(value) {
+    const parts = value.split('-').map(Number);
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function formatLocalDate(value) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function getShiftedStatsDate(direction) {
+    const value = parseLocalDate(statsSelectedDate);
+    if (currentPeriod === 'month') {
+        value.setDate(1);
+        value.setMonth(value.getMonth() + direction);
+    } else {
+        value.setDate(value.getDate() + direction * (currentPeriod === 'week' ? 7 : 1));
+    }
+    return formatLocalDate(value);
+}
+
+function getStatsPeriodKey(value) {
+    if (currentPeriod === 'day') return value;
+    const parsed = parseLocalDate(value);
+    if (currentPeriod === 'week') {
+        const weekday = (parsed.getDay() + 6) % 7;
+        parsed.setDate(parsed.getDate() - weekday);
+        return formatLocalDate(parsed);
+    }
+    return value.slice(0, 7);
+}
+
+function getBoundedShiftedStatsDate(direction) {
+    let value = getShiftedStatsDate(direction);
+    if (statsAvailableStart && value < statsAvailableStart) value = statsAvailableStart;
+    if (statsAvailableEnd && value > statsAvailableEnd) value = statsAvailableEnd;
+    return value;
+}
+
+function updateStatsNavigation(data) {
+    statsSelectedDate = data.selected_date;
+    statsAvailableStart = (data.available_range || {}).start || '';
+    statsAvailableEnd = (data.available_range || {}).end || '';
+
+    const input = document.getElementById('stats-date');
+    input.value = statsSelectedDate;
+    input.min = statsAvailableStart;
+    input.max = statsAvailableEnd;
+    document.getElementById('stats-date-caption').textContent = {
+        day: '日期', week: '周内日期', month: '月内日期'
+    }[currentPeriod];
+    document.getElementById('stats-range-label').textContent =
+        data.start === data.end ? `统计日期：${data.start}` : `统计范围：${data.start} 至 ${data.end}`;
+
+    const currentKey = getStatsPeriodKey(statsSelectedDate);
+    const previousDate = getBoundedShiftedStatsDate(-1);
+    const nextDate = getBoundedShiftedStatsDate(1);
+    document.getElementById('stats-prev').disabled =
+        !statsAvailableStart || getStatsPeriodKey(previousDate) === currentKey;
+    document.getElementById('stats-next').disabled =
+        !statsAvailableEnd || getStatsPeriodKey(nextDate) === currentKey;
+}
+
+function selectStatsDate(value) {
+    if (!value) return;
+    statsSelectedDate = value;
+    loadStats(currentPeriod);
+}
+
+function shiftStatsDate(direction) {
+    if (!statsSelectedDate) return;
+    statsSelectedDate = getBoundedShiftedStatsDate(direction);
+    loadStats(currentPeriod);
+}
+
+document.querySelectorAll('#stats-period-control button').forEach(b => {
+    b.onclick = () => {
+        document.querySelectorAll('#stats-period-control button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        currentPeriod = b.dataset.period;
+        loadStats(currentPeriod);
+    };
+});
+
+async function loadStats(period) {
+    try {
+        const params = new URLSearchParams();
+        if (statsSelectedDate) params.set('date', statsSelectedDate);
+        const query = params.toString();
+        const d = await api('/api/admin/stats/' + period + (query ? '?' + query : ''));
+        updateStatsNavigation(d);
+        document.getElementById('stats-empty').hidden = (d.daily || []).length > 0;
+        // Summary cards
+        const totalDaily = (d.daily || []).reduce((s, x) => s + x.daily_total, 0);
+        const panelTotals = {};
+        (d.panel_daily || []).forEach(x => { panelTotals[x.panel_name] = (panelTotals[x.panel_name] || 0) + x.daily_total; });
+        const topPanel = Object.entries(panelTotals).sort((a,b) => b[1]-a[1])[0];
+        document.getElementById('stats-cards').innerHTML = [
+            {label:'总流量', value: fmtGB(totalDaily)},
+            {label:'有数据天数', value: (d.daily || []).length},
+            {label:'最高用量面板', value: topPanel ? topPanel[0] : '-', sub: topPanel ? fmtGB(topPanel[1]) : ''},
+        ].map(s => `<div class="stat-card"><div class="label">${s.label}</div><div class="value">${s.value}</div>${s.sub ? `<div class="sub">${s.sub}</div>` : ''}</div>`).join('');
+
+        // Trend chart
+        if (statsTrendChart) statsTrendChart.destroy();
+        const ctx1 = document.getElementById('chart-stats-trend').getContext('2d');
+        const labels = (d.daily || []).map(x => x.record_date);
+        const upData = (d.daily || []).map(x => +(x.total_upload / 1073741824).toFixed(2));
+        const downData = (d.daily || []).map(x => +(x.total_download / 1073741824).toFixed(2));
+        statsTrendChart = new Chart(ctx1, {type:'bar', data:{labels, datasets:[
+            {label:'上传(GB)', data:upData, backgroundColor:'rgba(37,99,235,0.6)'},
+            {label:'下载(GB)', data:downData, backgroundColor:'rgba(22,163,74,0.6)'},
+        ]}, options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}}});
+
+        // Panel comparison chart
+        if (statsPanelChart) statsPanelChart.destroy();
+        const ctx2 = document.getElementById('chart-stats-panel').getContext('2d');
+        const pLabels = Object.keys(panelTotals);
+        const pData = pLabels.map(k => +(panelTotals[k] / 1073741824).toFixed(2));
+        statsPanelChart = new Chart(ctx2, {type:'doughnut', data:{labels:pLabels, datasets:[{data:pData, backgroundColor:['#2563eb','#16a34a','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#ef4444','#84cc16']}]},
+            options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}}}});
+
+        // Top users
+        let html = '';
+        (d.top_users || []).forEach((u, i) => {
+            html += `<tr><td>${i+1}</td><td>${u.email}</td><td>${u.panel_name}</td><td style="text-align:right;">${fmtGB(u.total_usage)}</td></tr>`;
+        });
+        if (!html) html = '<tr><td colspan="4" class="empty">暂无数据</td></tr>';
+        document.getElementById('stats-top-tbody').innerHTML = html;
+    } catch(e) { toast(e.message, true); }
+}
+
+// --- Settings ---
+async function loadSettings() {
+    try {
+        const d = await api('/api/admin/settings');
+        document.getElementById('toggle-monthly').classList.toggle('on', d.monthly_reset.enable);
+        document.getElementById('toggle-report').classList.toggle('on', d.daily_report.enable);
+        const sel = document.getElementById('report-hour');
+        sel.innerHTML = Array.from({length:24}, (_,i) => `<option value="${i}">${i}:00</option>`).join('');
+        sel.value = d.daily_report.hour || 8;
+        // accounting mode
+        const accMode = (d.traffic && d.traffic.accounting_mode) || "unidirectional";
+        document.querySelectorAll("#accounting-control button").forEach(b => {
+            b.classList.toggle("active", b.dataset.mode === accMode);
+        });
+    } catch(e) { toast(e.message, true); }
+}
+async function toggleMonthly() {
+    const el = document.getElementById('toggle-monthly');
+    const enable = !el.classList.contains('on');
+    try {
+        await api('/api/admin/settings/monthly_reset', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enable})});
+        el.classList.toggle('on', enable);
+        toast('已 ' + (enable ? '开启' : '关闭'));
+    } catch(e) { toast(e.message, true); }
+}
+async function toggleReport() {
+    const el = document.getElementById('toggle-report');
+    const enable = !el.classList.contains('on');
+    const hour = parseInt(document.getElementById('report-hour').value);
+    try {
+        await api('/api/admin/settings/daily_report', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enable, hour})});
+        el.classList.toggle('on', enable);
+        toast('已 ' + (enable ? '开启' : '关闭'));
+    } catch(e) { toast(e.message, true); }
+}
+async function saveReportHour() {
+    const hour = parseInt(document.getElementById('report-hour').value);
+    const enable = document.getElementById('toggle-report').classList.contains('on');
+    try {
+        await api('/api/admin/settings/daily_report', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enable, hour})});
+        toast('推送时间已保存');
+    } catch(e) { toast(e.message, true); }
+}
+
+// Accounting mode control
+document.querySelectorAll('#accounting-control button').forEach(b => {
+    b.onclick = async () => {
+        const mode = b.dataset.mode;
+        try {
+            await api('/api/admin/settings/accounting_mode', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode})});
+            document.querySelectorAll('#accounting-control button').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            toast('统计方式已保存，重启后生效');
+        } catch(e) { toast(e.message, true); }
+    };
+});
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>

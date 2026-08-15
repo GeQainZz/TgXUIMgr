@@ -280,17 +280,20 @@ def admin_set_accounting_mode():
 
 # --- Admin API: Stats ---
 
-def _date_range_for(period: str) -> tuple:
-    today = date.today()
-    if period == "week":
-        start = today - timedelta(days=today.weekday())
-        end = today
+def _date_range_for(period: str, anchor: date = None) -> tuple:
+    anchor = anchor or date.today()
+    if period == "day":
+        start = end = anchor
+    elif period == "week":
+        start = anchor - timedelta(days=anchor.weekday())
+        end = start + timedelta(days=6)
     elif period == "month":
-        start = today.replace(day=1)
-        end = today
+        start = anchor.replace(day=1)
+        next_month = (anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
+        end = next_month - timedelta(days=1)
     else:
-        start = today - timedelta(days=29)
-        end = today
+        start = anchor - timedelta(days=29)
+        end = anchor
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
 
@@ -323,14 +326,36 @@ def admin_stats_overview():
 @app.route('/api/admin/stats/<period>')
 @require_admin
 def admin_stats_period(period):
-    if period == "day":
-        start = end = date.today().strftime("%Y-%m-%d")
+    if period not in ("day", "week", "month"):
+        return jsonify({"error": "统计周期无效"}), 400
+
+    db_range = get_date_range()
+    selected_date = request.args.get("date")
+    if selected_date:
+        try:
+            anchor = date.fromisoformat(selected_date)
+        except ValueError:
+            return jsonify({"error": "日期格式无效，请使用 YYYY-MM-DD"}), 400
     else:
-        start, end = _date_range_for(period)
+        selected_date = db_range[1] if db_range else date.today().isoformat()
+        anchor = date.fromisoformat(selected_date)
+
+    start, end = _date_range_for(period, anchor)
     daily = get_daily_stats(start, end)
     panel_daily = get_panel_daily_stats(start, end)
     top = get_top_users(start, end, limit=20)
-    return jsonify({"start": start, "end": end, "daily": daily, "panel_daily": panel_daily, "top_users": top})
+    return jsonify({
+        "selected_date": selected_date,
+        "start": start,
+        "end": end,
+        "available_range": {
+            "start": db_range[0] if db_range else None,
+            "end": db_range[1] if db_range else None,
+        },
+        "daily": daily,
+        "panel_daily": panel_daily,
+        "top_users": top,
+    })
 
 
 @app.route('/api/admin/stats/panel/<name>')
