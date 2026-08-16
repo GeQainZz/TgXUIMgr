@@ -3,6 +3,7 @@ import subprocess
 import sys
 from functools import wraps
 from datetime import datetime, timedelta, time
+from zoneinfo import ZoneInfo
 from telegram import Update, BotCommand
 from telegram.ext import (
     Application,
@@ -17,13 +18,20 @@ import config
 from xui_api import XUIApi
 from database import (
     init_db, batch_record_traffic, cleanup_old_traffic,
-    get_daily_stats, get_panel_daily_stats, get_top_users,
+    get_daily_stats, get_panel_daily_stats, get_top_users, has_traffic_snapshot,
 )
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+SCHEDULE_TIMEZONE = ZoneInfo("Asia/Hong_Kong")
+
+
+def _scheduled_time(hour: int, minute: int = 0) -> time:
+    """Create a daily job time in the service's configured timezone."""
+    return time(hour=hour, minute=minute, tzinfo=SCHEDULE_TIMEZONE)
 
 # Init database on startup
 init_db()
@@ -442,7 +450,7 @@ async def record_traffic_job(context: ContextTypes.DEFAULT_TYPE):
     if not all_panels:
         logger.warning("record_traffic_job skipped: no panels configured.")
         return
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(SCHEDULE_TIMEZONE).strftime("%Y-%m-%d")
     records = []
     for name, pconf in all_panels.items():
         if pconf.get("disabled", False):
@@ -462,6 +470,13 @@ async def record_traffic_job(context: ContextTypes.DEFAULT_TYPE):
 def _format_daily_report_text(report_date: str, stats: list,
                               panel_stats: list, top_users_by_panel: dict) -> str:
     """Format a daily report with user rankings kept separate per panel."""
+    if not stats and not panel_stats:
+        return (
+            f"📊 **每日流量日报 ({report_date})**\n\n"
+            "**当日数据暂不可用**\n"
+            "- 原因: 前一日流量快照缺失，无法计算准确用量。"
+        )
+
     total_upload = sum(s["total_upload"] for s in stats)
     total_download = sum(s["total_download"] for s in stats)
     total_traffic = total_upload + total_download
@@ -496,7 +511,13 @@ def _format_daily_report_text(report_date: str, stats: list,
 
 async def _generate_daily_report_text() -> str:
     """Build the daily traffic report message from the database."""
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    report_day = datetime.now(SCHEDULE_TIMEZONE).date() - timedelta(days=1)
+    yesterday = report_day.strftime("%Y-%m-%d")
+    baseline_day = (report_day - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # A cumulative counter needs snapshots on both dates to calculate a daily delta.
+    if not has_traffic_snapshot(yesterday) or not has_traffic_snapshot(baseline_day):
+        return _format_daily_report_text(yesterday, [], [], {})
 
     # Use yesterday's data for the report (full day).
     stats = get_daily_stats(yesterday, yesterday)
@@ -553,11 +574,11 @@ async def check_inbounds_job(context: ContextTypes.DEFAULT_TYPE):
                 continue
             inbounds_data = await api.get_inbounds()
         if inbounds_data and inbounds_data.get("success"):
-            three_days_later = (datetime.now() + timedelta(days=3)).timestamp() * 1000
+            three_days_later = (datetime.now(SCHEDULE_TIMEZONE) + timedelta(days=3)).timestamp() * 1000
             for inbound in inbounds_data.get("obj", []):
                 expiry_ts = inbound.get("expiryTime", 0)
                 if 0 < expiry_ts < three_days_later:
-                    expiry_date = datetime.fromtimestamp(expiry_ts / 1000).strftime('%Y-%m-%d')
+                    expiry_date = datetime.fromtimestamp(expiry_ts / 1000, SCHEDULE_TIMEZONE).strftime('%Y-%m-%d')
                     message = f"🔔 **入站到期提醒 ({name})** 🔔\n- 备注: {inbound.get('remark', 'N/A')}\n- 将于: {expiry_date} 到期"
                     for uid in admin_users:
                         await context.bot.send_message(chat_id=uid, text=message, parse_mode='Markdown')
@@ -570,7 +591,7 @@ async def traffic_reset_job(context: ContextTypes.DEFAULT_TYPE):
     if not all_panels:
         return
     admin_users = config.get_admin_users()
-    today = datetime.now()
+    today = datetime.now(SCHEDULE_TIMEZONE)
     for name, pconf in all_panels.items():
         if pconf.get("disabled", False):
             continue
@@ -639,10 +660,10 @@ def main() -> None:
     job_queue = application.job_queue
     if job_queue:
         job_queue.run_repeating(check_inbounds_job, interval=timedelta(hours=6), first=timedelta(seconds=10))
-        job_queue.run_daily(record_traffic_job, time=time(hour=23, minute=50))
+        job_queue.run_daily(record_traffic_job, time=_scheduled_time(23, 50))
         report_hour = config.get_daily_report_hour()
-        job_queue.run_daily(daily_report_job, time=time(hour=report_hour, minute=0))
-        job_queue.run_daily(traffic_reset_job, time=time(hour=0, minute=5))
+        job_queue.run_daily(daily_report_job, time=_scheduled_time(report_hour))
+        job_queue.run_daily(traffic_reset_job, time=_scheduled_time(0, 5))
     else:
         logger.warning("JobQueue not initialized.")
 

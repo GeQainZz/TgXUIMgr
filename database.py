@@ -252,6 +252,16 @@ def get_date_range() -> Optional[Tuple[str, str]]:
     return None
 
 
+def has_traffic_snapshot(record_date: str) -> bool:
+    """Return whether at least one traffic record exists for a snapshot date."""
+    conn = _get_conn()
+    row = conn.execute(
+        "SELECT 1 FROM traffic_records WHERE record_date = ? LIMIT 1", (record_date,)
+    ).fetchone()
+    conn.close()
+    return row is not None
+
+
 def get_panel_user_list(panel_name: str) -> List[str]:
     conn = _get_conn()
     rows = conn.execute(

@@ -1,6 +1,10 @@
+import asyncio
 import unittest
+from zoneinfo import ZoneInfo
+from unittest.mock import patch
 
-from main import _format_daily_report_text
+import main
+from main import _format_daily_report_text, _generate_daily_report_text, _scheduled_time
 
 
 class DailyReportFormattingTests(unittest.TestCase):
@@ -30,6 +34,27 @@ class DailyReportFormattingTests(unittest.TestCase):
         self.assertIn("1. same-user (DMIT-MALIBU)", text)
         self.assertNotIn("11. big-10", text)
         self.assertNotIn("**Top 10 用户:**", text)
+
+    def test_scheduled_jobs_use_hong_kong_timezone(self):
+        scheduled = _scheduled_time(8)
+
+        self.assertEqual(scheduled.hour, 8)
+        self.assertEqual(scheduled.tzinfo, ZoneInfo("Asia/Hong_Kong"))
+
+    def test_missing_snapshot_is_not_reported_as_zero_usage(self):
+        text = _format_daily_report_text("2026-08-15", [], [], {})
+
+        self.assertIn("当日数据暂不可用", text)
+        self.assertIn("前一日流量快照缺失", text)
+        self.assertNotIn("总用量", text)
+
+    @patch("main.has_traffic_snapshot", side_effect=[True, False])
+    @patch("main.get_daily_stats")
+    def test_report_requires_a_snapshot_for_the_prior_day(self, daily_stats, _snapshots):
+        text = asyncio.run(_generate_daily_report_text())
+
+        self.assertIn("当日数据暂不可用", text)
+        daily_stats.assert_not_called()
 
 
 if __name__ == "__main__":
