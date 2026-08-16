@@ -252,11 +252,14 @@ def get_date_range() -> Optional[Tuple[str, str]]:
     return None
 
 
-def has_traffic_snapshot(record_date: str) -> bool:
-    """Return whether at least one traffic record exists for a snapshot date."""
+def has_daily_traffic_snapshot(record_date: str) -> bool:
+    """Return whether a date has the scheduled end-of-day traffic snapshot."""
     conn = _get_conn()
     row = conn.execute(
-        "SELECT 1 FROM traffic_records WHERE record_date = ? LIMIT 1", (record_date,)
+        """SELECT 1 FROM traffic_records
+           WHERE record_date = ? AND time(created_at) >= '23:00:00'
+           LIMIT 1""",
+        (record_date,),
     ).fetchone()
     conn.close()
     return row is not None

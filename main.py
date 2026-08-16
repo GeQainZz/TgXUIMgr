@@ -18,7 +18,7 @@ import config
 from xui_api import XUIApi
 from database import (
     init_db, batch_record_traffic, cleanup_old_traffic,
-    get_daily_stats, get_panel_daily_stats, get_top_users, has_traffic_snapshot,
+    get_daily_stats, get_panel_daily_stats, get_top_users, has_daily_traffic_snapshot,
 )
 
 logging.basicConfig(
@@ -515,8 +515,8 @@ async def _generate_daily_report_text() -> str:
     yesterday = report_day.strftime("%Y-%m-%d")
     baseline_day = (report_day - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # A cumulative counter needs snapshots on both dates to calculate a daily delta.
-    if not has_traffic_snapshot(yesterday) or not has_traffic_snapshot(baseline_day):
+    # A cumulative counter needs scheduled end-of-day snapshots on both dates.
+    if not has_daily_traffic_snapshot(yesterday) or not has_daily_traffic_snapshot(baseline_day):
         return _format_daily_report_text(yesterday, [], [], {})
 
     # Use yesterday's data for the report (full day).

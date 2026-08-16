@@ -48,7 +48,7 @@ class DailyReportFormattingTests(unittest.TestCase):
         self.assertIn("前一日流量快照缺失", text)
         self.assertNotIn("总用量", text)
 
-    @patch("main.has_traffic_snapshot", side_effect=[True, False])
+    @patch("main.has_daily_traffic_snapshot", side_effect=[True, False])
     @patch("main.get_daily_stats")
     def test_report_requires_a_snapshot_for_the_prior_day(self, daily_stats, _snapshots):
         text = asyncio.run(_generate_daily_report_text())
