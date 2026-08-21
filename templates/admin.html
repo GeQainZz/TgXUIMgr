@@ -267,7 +267,7 @@
 
         <!-- Users Tab -->
         <div class="tab-section" id="tab-users">
-            <div class="section-intro"><div><span class="section-kicker">ACCESS</span><h3>授权用户</h3></div><div class="inline-form"><input id="new-uid" type="number" placeholder="用户 ID"><button class="btn btn-primary" onclick="addUser()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加</button></div>
+            <div class="section-intro"><div><span class="section-kicker">ACCESS</span><h3>授权用户</h3></div><div class="inline-form"><input id="new-uid" type="number" placeholder="用户 ID" onkeydown="if(event.key==='Enter'){event.preventDefault();addUser();}"><button type="button" class="btn btn-primary" onclick="addUser()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加</button></div>
             </div>
             <div class="card table-card">
                 <table>
@@ -587,7 +587,7 @@ async function loadUsers() {
 }
 async function addUser() {
     const uid = document.getElementById('new-uid').value.trim();
-    if (!uid) return;
+    if (!uid) { toast('请输入用户 ID', true); return; }
     try {
         await api('/api/admin/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id: uid})});
         toast('用户已添加');
