@@ -228,6 +228,7 @@
         <a data-tab="panels"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>面板管理</span></a>
         <a data-tab="users"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>用户管理</span></a>
         <a data-tab="stats"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>流量统计</span></a>
+        <a data-tab="logs"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><span>查询日志</span></a>
         <a data-tab="settings"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>设置</span></a>
     </nav>
     <div class="sidebar-foot"><span class="online-dot"></span><span>系统运行中</span></div>
@@ -315,6 +316,17 @@
             </div>
         </div>
 
+        <!-- Logs Tab -->
+        <div class="tab-section" id="tab-logs">
+            <div class="section-intro"><div><span class="section-kicker">AUDIT</span><h3>查询日志</h3></div><span class="section-note">最近 200 条</span></div>
+            <div class="card table-card">
+                <table>
+                    <thead><tr><th>时间</th><th>来源</th><th>操作者</th><th>面板</th><th>查询用户</th><th>结果</th></tr></thead>
+                    <tbody id="logs-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Settings Tab -->
         <div class="tab-section" id="tab-settings">
             <div class="section-intro"><div><span class="section-kicker">SYSTEM</span><h3>设置</h3></div><span class="section-note">自动化与统计口径</span></div>
@@ -389,7 +401,7 @@ async function api(url, opts) {
 }
 
 // --- Tab switching ---
-const titles = {dashboard:'仪表盘', panels:'面板管理', users:'用户管理', stats:'流量统计', settings:'设置'};
+const titles = {dashboard:'仪表盘', panels:'面板管理', users:'用户管理', stats:'流量统计', logs:'查询日志', settings:'设置'};
 document.querySelectorAll('.sidebar nav a').forEach(a => {
     a.onclick = () => {
         document.querySelectorAll('.sidebar nav a').forEach(x => x.classList.remove('active'));
@@ -401,6 +413,7 @@ document.querySelectorAll('.sidebar nav a').forEach(a => {
         if (a.dataset.tab === 'panels') loadPanels();
         if (a.dataset.tab === 'users') loadUsers();
         if (a.dataset.tab === 'stats') loadStats(currentPeriod);
+        if (a.dataset.tab === 'logs') loadQueryLogs();
         if (a.dataset.tab === 'settings') loadSettings();
     };
 });
@@ -750,6 +763,22 @@ async function loadStats(period) {
         });
         if (!html) html = '<tr><td colspan="4" class="empty">暂无数据</td></tr>';
         document.getElementById('stats-top-tbody').innerHTML = html;
+    } catch(e) { toast(e.message, true); }
+}
+
+// --- Query Logs ---
+async function loadQueryLogs() {
+    try {
+        const d = await api('/api/admin/query_logs');
+        let html = '';
+        d.forEach(row => {
+            const time = row.created_at || '';
+            const src = row.source === 'telegram' ? 'Telegram' : 'Web';
+            const ok = row.success ? '<span class="badge badge-green">成功</span>' : '<span class="badge badge-gray">失败</span>';
+            html += `<tr><td>${time}</td><td>${src}</td><td>${row.actor}</td><td>${row.panel_name}</td><td>${row.email}</td><td>${ok}</td></tr>`;
+        });
+        if (!html) html = '<tr><td colspan="6" class="empty">暂无查询记录</td></tr>';
+        document.getElementById('logs-tbody').innerHTML = html;
     } catch(e) { toast(e.message, true); }
 }
 

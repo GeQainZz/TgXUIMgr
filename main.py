@@ -19,6 +19,7 @@ from xui_api import XUIApi
 from database import (
     init_db, batch_record_traffic, cleanup_old_traffic,
     get_daily_stats, get_panel_daily_stats, get_top_users, has_daily_traffic_snapshot,
+    record_query_log,
 )
 
 logging.basicConfig(
@@ -224,6 +225,10 @@ async def query_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text(f"正在在 '{panel_name}' 上查询中，请稍候...")
 
     success, result = await query_user_data(panel_name, query_user)
+    try:
+        record_query_log("telegram", update.effective_user.id, panel_name, query_user, success)
+    except Exception:
+        pass
 
     if success:
         if user_id in failed_query_attempts:

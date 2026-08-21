@@ -37,6 +37,16 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_tr_date  ON traffic_records(record_date);
         CREATE INDEX IF NOT EXISTS idx_tr_panel ON traffic_records(panel_name);
         CREATE INDEX IF NOT EXISTS idx_tr_email ON traffic_records(email);
+        CREATE TABLE IF NOT EXISTS query_logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            source      TEXT    NOT NULL,
+            actor       TEXT    NOT NULL,
+            panel_name  TEXT    NOT NULL,
+            email       TEXT    NOT NULL,
+            success     INTEGER DEFAULT 0,
+            created_at  TEXT    DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_ql_created ON query_logs(created_at);
     """)
     conn.commit()
     conn.close()
@@ -263,6 +273,32 @@ def has_daily_traffic_snapshot(record_date: str) -> bool:
     ).fetchone()
     conn.close()
     return row is not None
+
+
+def record_query_log(source: str, actor: str, panel_name: str, email: str, success: bool) -> None:
+    """Persist a single query log entry (TG bot or Web)."""
+    conn = _get_conn()
+    conn.execute(
+        """INSERT INTO query_logs (source, actor, panel_name, email, success)
+           VALUES (?, ?, ?, ?, ?)""",
+        (source, str(actor), panel_name or "", email or "", 1 if success else 0),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_query_logs(limit: int = 200) -> List[Dict]:
+    """Return recent query log entries newest-first."""
+    conn = _get_conn()
+    rows = conn.execute(
+        """SELECT id, source, actor, panel_name, email, success, created_at
+           FROM query_logs
+           ORDER BY id DESC
+           LIMIT ?""",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def get_panel_user_list(panel_name: str) -> List[str]:

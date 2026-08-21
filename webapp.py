@@ -10,6 +10,7 @@ from database import (
     get_daily_stats, get_panel_daily_stats, get_user_daily_stats,
     get_top_users, get_latest_snapshot, get_date_range,
     get_panel_user_list, init_db,
+    record_query_log, get_query_logs,
 )
 from notify import notify_admins
 
@@ -374,6 +375,18 @@ def admin_stats_panel(name):
     return jsonify({"panel_name": name, "start": start, "end": end, "daily": daily, "top_users": top, "user_daily": user_daily})
 
 
+
+# --- Admin Query Logs ---
+
+@app.route('/api/admin/query_logs')
+@require_admin
+def admin_query_logs():
+    limit = request.args.get("limit", 200, type=int)
+    if limit < 1 or limit > 1000:
+        limit = 200
+    return jsonify(get_query_logs(limit=limit))
+
+
 # --- User Query API ---
 
 @app.route('/api/query', methods=['POST'])
@@ -398,6 +411,10 @@ def api_query():
 
     try:
         success, result = asyncio.run(query_user_data(panel_name, email))
+        try:
+            record_query_log("web", ip_address, panel_name, email, success)
+        except Exception:
+            pass
         if success:
             if ip_address in failed_web_attempts:
                 del failed_web_attempts[ip_address]
